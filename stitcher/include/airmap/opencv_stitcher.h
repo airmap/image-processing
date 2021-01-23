@@ -42,14 +42,11 @@ public:
     OpenCVStitcher(const Panorama &panorama,
                    const Panorama::Parameters &parameters,
                    const std::string &outputPath,
-                   std::shared_ptr<Logger> logger,
-                   bool debug = false, path debugPath = path("debug"))
+                   std::shared_ptr<Logger> logger)
         : _panorama(panorama)
         , _parameters(parameters)
         , _outputPath(outputPath)
         , _logger(logger)
-        , _debug(debug)
-        , _debugPath(debugPath)
     {
     }
 
@@ -58,8 +55,6 @@ public:
     void postprocess(cv::Mat&& result);
 
 protected:
-    bool _debug;
-    path _debugPath;
     Panorama _panorama;
     Panorama::Parameters _parameters;
     std::string _outputPath;
@@ -140,6 +135,12 @@ public:
         //! Megapixels an image will be scaled down to for the composition step.
         double compose_megapix;
 
+        //! Whether to create debug artifacts (e.g. feature detection, matching, warping, etc.)
+        bool debug;
+
+        //! Path to debug artifacts directory.
+        path debug_path;
+
         /*!
          * The type of estimator (e.g. affine or homography) to use to estimate initial
          * camera parameters.
@@ -206,18 +207,6 @@ public:
          */
         SeamFinderType seam_finder_type;
 
-        /**
-         * @brief seam_finder_graph_cut_terminal_cost
-         * 
-         */
-        float seam_finder_graph_cut_terminal_cost;
-
-        /**
-         * @brief seam_finder_graph_cut_bad_region_penalty
-         * 
-         */
-        float seam_finder_graph_cut_bad_region_penalty;
-
         /*!
          * Various components have optional CUDA support.  If this is set to
          * true, then they will attempt to use CUDA versions.
@@ -261,14 +250,14 @@ public:
          * defaults in the future.
          * @param stitchType The stitching default to use.
          */
-        Configuration(StitchType stitchType)
+        Configuration(StitchType stitchType, bool _debug = false, path _debugPath = path("debug"))
         {
             switch (stitchType) {
             case StitchType::ThreeSixty:
                 blend_strength = 5;
                 blender_type = cv::detail::Blender::MULTI_BAND;
                 bundle_adjuster_type = BundleAdjusterType::Ray;
-                compose_megapix = -1;
+                compose_megapix = 8;
                 estimator_type = EstimatorType::Homography;
                 exposure_compensator_type = ExposureCompensatorType::GainBlocks;
                 exposure_compensation_nr_feeds = 1;
@@ -282,8 +271,6 @@ public:
                 range_width = -1;
                 seam_megapix = 0.1;
                 seam_finder_type = SeamFinderType::GraphCutColorGrad;
-                seam_finder_graph_cut_terminal_cost = 1.f;
-                seam_finder_graph_cut_bad_region_penalty = 1000.f;
                 try_cuda = false;
                 warper_type = WarperType::Spherical;
                 wave_correct = true;
@@ -291,6 +278,9 @@ public:
                 work_megapix = 0.6;
                 break;
             }
+
+            debug = _debug;
+            debug_path = _debugPath;
         }
 
         /**
@@ -300,6 +290,8 @@ public:
          * @param blender_type
          * @param bundle_adjuster_type
          * @param compose_megapix
+         * @param debug
+         * @param debug_path
          * @param estimator_type
          * @param exposure_compensator_type
          * @param exposure_compensation_nr_feeds
@@ -313,8 +305,6 @@ public:
          * @param range_width
          * @param seam_megapix
          * @param seam_finder_type
-         * @param seam_finder_graph_cut_terminal_cost
-         * @param seam_finder_graph_cut_bad_region_penalty
          * @param try_cuda
          * @param warper_type
          * @param wave_correct
@@ -323,24 +313,24 @@ public:
          */
         Configuration(float blend_strength, int blender_type,
                       BundleAdjusterType bundle_adjuster_type, double compose_megapix,
+                      bool debug, path debug_path,
                       EstimatorType estimator_type,
                       ExposureCompensatorType exposure_compensator_type,
                       int exposure_compensation_nr_feeds,
                       int exposure_compensation_nr_filtering,
                       int exposure_compensation_block_size,
                       FeaturesFinderType features_finder_type,
-                      FeaturesMatcherType features_matcher_type,
-                      int features_maximum, float match_conf,
-                      double match_conf_thresh, int range_width, 
-                      double seam_megapix, SeamFinderType seam_finder_type,
-                      float seam_finder_graph_cut_terminal_cost,
-                      float seam_finder_graph_cut_bad_region_penalty,
-                      bool try_cuda, WarperType warper_type, bool wave_correct,
+                      FeaturesMatcherType features_matcher_type, int features_maximum,
+                      float match_conf, double match_conf_thresh, int range_width,
+                      double seam_megapix, SeamFinderType seam_finder_type, bool try_cuda,
+                      WarperType warper_type, bool wave_correct,
                       WaveCorrectType wave_correct_type, double work_megapix)
             : blend_strength(blend_strength)
             , blender_type(blender_type)
             , bundle_adjuster_type(bundle_adjuster_type)
             , compose_megapix(compose_megapix)
+            , debug(debug)
+            , debug_path(debug_path)
             , estimator_type(estimator_type)
             , exposure_compensator_type(exposure_compensator_type)
             , exposure_compensation_nr_feeds(exposure_compensation_nr_feeds)
@@ -354,9 +344,6 @@ public:
             , range_width(range_width)
             , seam_megapix(seam_megapix)
             , seam_finder_type(seam_finder_type)
-            , seam_finder_graph_cut_terminal_cost(seam_finder_graph_cut_terminal_cost)
-            , seam_finder_graph_cut_bad_region_penalty(
-                seam_finder_graph_cut_bad_region_penalty)
             , try_cuda(try_cuda)
             , warper_type(warper_type)
             , wave_correct(wave_correct)
@@ -410,8 +397,7 @@ public:
             const Panorama &panorama,
             const Panorama::Parameters &parameters,
             const std::string &outputPath,
-            std::shared_ptr<Logger> logger, bool debug = false,
-            path debugPath = path("debug"));
+            std::shared_ptr<Logger> logger);
 
     Report stitch() override;
     void cancel() override;
@@ -422,9 +408,10 @@ private:
     /**
      * @brief stitch
      * Stitch the input images into a panorama.
+     * @param panorama
      * @param result
      */
-    Stitcher::Report stitch(cv::Mat &result);
+    void stitch(cv::Mat &result);
 
     /**
      * @brief adjustCameraParameters
@@ -452,17 +439,19 @@ private:
                  std::vector<cv::detail::CameraParams> &cameras,
                  cv::Ptr<cv::detail::ExposureCompensator> &exposure_compensator,
                  WarpResults &warp_results, double work_scale,
-                 double compose_scale, float warped_image_scale, cv::Mat &result);
+                 float warped_image_scale, cv::Mat &result);
 
     /**
      * @brief debugFeatures
      * Draw features on source images and save the results.
      * @param source_images
      * @param features
+     * @param scale
      * @param flags
      */
     void debugFeatures(SourceImages &source_images,
                        std::vector<cv::detail::ImageFeatures> &features,
+                       double scale,
                        cv::DrawMatchesFlags flags = cv::DrawMatchesFlags::DEFAULT);
 
     /**
@@ -479,12 +468,14 @@ private:
      * @param source_images
      * @param features
      * @param matches
+     * @param scale
      * @param conf_threshold
      * @param flags
      */
     void debugMatches(SourceImages &source_images,
                       std::vector<cv::detail::ImageFeatures> &features,
                       std::vector<cv::detail::MatchesInfo> &matches,
+                      double scale,
                       float conf_threshold,
                       cv::DrawMatchesFlags flags = cv::DrawMatchesFlags::DEFAULT);
 
@@ -511,9 +502,11 @@ private:
      * @brief findFeatures
      * Find features in the source images.  Scale images to work_scale first.
      * @param source_images
+     * @param work_scale
      * @return
      */
-    std::vector<cv::detail::ImageFeatures> findFeatures(SourceImages &source_images);
+    std::vector<cv::detail::ImageFeatures> findFeatures(SourceImages &source_images,
+                                                        double work_scale);
 
     /**
      * @brief findMedianFocalLength
@@ -642,8 +635,11 @@ private:
      * Optionally undistort the images, depending on whether the
      * camera model can be identified, and is required for that camera.
      * @param source_images Source images object.
+     * @param debug Whether to save undistorted images for debugging.
+     * @param debug_path Path to the directory to save debug images.
      */
-    void undistortImages(SourceImages &source_images);
+    void undistortImages(SourceImages &source_images, bool debug,
+                         path debug_path = path("debug") / "undistort");
 
     /**
      * @brief warpImages

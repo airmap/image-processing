@@ -74,17 +74,20 @@ TEST_F(SourceImagesTest, sourceImagesStruct)
 {
     EXPECT_EQ(source_images->gimbal_orientations.size(), 25);
     EXPECT_EQ(source_images->images.size(), 25);
+    EXPECT_EQ(source_images->sizes.size(), 25);
 }
 
 TEST_F(SourceImagesTest, sourceImagesClear)
 {
     EXPECT_EQ(source_images->gimbal_orientations.size(), 25);
     EXPECT_EQ(source_images->images.size(), 25);
+    EXPECT_EQ(source_images->sizes.size(), 25);
 
     source_images->clear();
 
     EXPECT_EQ(source_images->gimbal_orientations.size(), 0);
     EXPECT_EQ(source_images->images.size(), 0);
+    EXPECT_EQ(source_images->sizes.size(), 0);
 }
 
 TEST_F(SourceImagesTest, sourceImagesEnsureImageCount)
@@ -170,10 +173,12 @@ TEST_F(SourceImagesTest, sourceImagesResize)
     source_images->resize(10);
     EXPECT_EQ(source_images->gimbal_orientations.size(), 10);
     EXPECT_EQ(source_images->images.size(), 10);
+    EXPECT_EQ(source_images->sizes.size(), 10);
 
     source_images->resize(5);
     EXPECT_EQ(source_images->gimbal_orientations.size(), 5);
     EXPECT_EQ(source_images->images.size(), 5);
+    EXPECT_EQ(source_images->sizes.size(), 5);
 }
 
 TEST_F(SourceImagesTest, sourceImagesScale)

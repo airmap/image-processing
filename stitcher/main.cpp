@@ -68,15 +68,11 @@ int main(int argc, char *argv[])
             vm["retries"].as<size_t>()
         };
         RetryingStitcher{
-            std::make_shared<LowLevelOpenCVStitcher>(
-                LowLevelOpenCVStitcher::Configuration(
-                    LowLevelOpenCVStitcher::StitchType::ThreeSixty),
+            std::make_shared<OpenCVStitcher>(
                 Panorama{input},
                 parameters,
                 vm["output"].as<std::string>(),
-                logger,
-                vm.count("debug") > 0,
-                debugPath
+                logger
             ), parameters, logger
         }.stitch();
         return EXIT_SUCCESS;

@@ -1,6 +1,7 @@
 #include "airmap/opencv_stitcher.h"
 #include "cropper.h"
 #include "cubemap.h"
+#include <random>
 
 namespace airmap {
 namespace stitcher {
@@ -13,18 +14,74 @@ namespace stitcher {
 Stitcher::Report OpenCVStitcher::stitch()
 {
     Stitcher::Report report;
+    std::vector<cv::Mat> imgs;
+    size_t totalNoOfInputPixels = 0;
+    for (const auto &srcImage : _panorama.inputPaths()) {
+        cv::Mat img = cv::imread(cv::samples::findFile(srcImage));
+        if (img.empty()) {
+            std::stringstream ss;
+            ss << "Can't read image " << srcImage;
+            throw std::invalid_argument(ss.str());
+        }
+        size_t pixels = img.cols * img.rows;
+        report.inputSizeMB += (img.elemSize() * pixels) / (1024 * 1024);
+        totalNoOfInputPixels += pixels;
+        imgs.push_back(img);
+    }
 
-    SourceImages source_images(_panorama, _logger);
-    source_images.scaleToAvailableMemory(_parameters.memoryBudgetMB,
-                                         _parameters.maxInputImageSize,
-                                         report.inputSizeMB,
-                                         report.inputScaled);
+    double maxInputImageScale =
+            std::min(1.0,
+                     (1.0 * _panorama.inputPaths().size() * _parameters.maxInputImageSize)
+                             / totalNoOfInputPixels);
+
+    // From this vantage point we consider the stitching algorithm a given. It needs a
+    // lot of RAM, or, more practically, to process an input of size X it needs Y
+    // megabytes of RAM and there's likely a linear relationship between X and Y,
+    // i.e.: Y = inputBudgetMultiplier * X. If Y is greater than
+    // parameters.memoryBudgetMB we'll stand no chance of succeeding and so we have no
+    // choice, but to scale the input. We've empirically established and will continue
+    // to calibrate the value of:
+    static constexpr double inputBudgetMultiplier = 5;
+    double maxRAMBudgetScale = _parameters.memoryBudgetMB
+                                          / (inputBudgetMultiplier * report.inputSizeMB);
+    report.inputScaled = std::min(maxRAMBudgetScale, maxInputImageScale);
+
+    if (report.inputScaled < 1.0) {
+        if (report.inputScaled < 0.2) {
+            std::stringstream ss;
+            ss << "The RAM budget given (" << _parameters.memoryBudgetMB
+               << "MB) enforces too much scaling (" << report.inputScaled << ") of the ("
+               << report.inputSizeMB << "MB of) input, aborting.";
+            throw std::invalid_argument(ss.str());
+        }
+
+        // Stitching is indeterministic and it may be retried on it - knowing that,
+        // nudge the calculated scale by a small, random amount to hopefully push the
+        // stitcher from a hypothetical sticky error condition.
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(-0.01, 0.01);
+        report.inputScaled += dis(gen);
+
+        for (auto &img : imgs) {
+            cv::resize(img, img, { 0, 0 }, report.inputScaled, report.inputScaled);
+        }
+        LOG(info) << "Scaled" << report.inputSizeMB << "MB of input to"
+                  << report.inputSizeMB * report.inputScaled << "MB (by "
+                  << report.inputScaled << "), the lesser of:";
+        LOG(info) << "- " << maxRAMBudgetScale << "to fit the given RAM budget of"
+                  << _parameters.memoryBudgetMB << "MB and";
+        size_t maxInputImgWidth = std::sqrt(4 * _parameters.maxInputImageSize / 3);
+        size_t maxInputImgHeight = 3 * maxInputImgWidth / 4;
+        LOG(info) << "- " << maxInputImageScale << "max input image size of"
+                  << maxInputImgWidth << "x" << maxInputImgHeight;
+    }
 
     cv::Mat result;
     cv::Ptr<cv::Stitcher> stitcher = cv::Stitcher::create(cv::Stitcher::PANORAMA);
     cv::Stitcher::Status status;
     try {
-        status = stitcher->stitch(source_images.images, result);
+        status = stitcher->stitch(imgs, result);
     } catch (const std::exception &e) {
         // can indeed throw, e.g.:
         //.../OpenCV/modules/flann/src/miniflann.cpp:487: error: (-215:Assertion
@@ -102,9 +159,8 @@ LowLevelOpenCVStitcher::LowLevelOpenCVStitcher(const Configuration &config,
                                                const Panorama &panorama,
                                                const Panorama::Parameters &parameters,
                                                const std::string &outputPath,
-                                               std::shared_ptr<Logger> logger,
-                                               bool debug, path debugPath)
-    : OpenCVStitcher(panorama, parameters, outputPath, logger, debug, debugPath)
+                                               std::shared_ptr<Logger> logger)
+    : OpenCVStitcher(panorama, parameters, outputPath, logger)
     , config(config) {};
 
 void LowLevelOpenCVStitcher::adjustCameraParameters(
@@ -126,9 +182,10 @@ void LowLevelOpenCVStitcher::compose(
         SourceImages &source_images, std::vector<cv::detail::CameraParams> &cameras,
         cv::Ptr<cv::detail::ExposureCompensator> &exposure_compensator,
         LowLevelOpenCVStitcher::WarpResults &warp_results, double work_scale,
-        double compose_scale, float warped_image_scale, cv::Mat &result)
+        float warped_image_scale, cv::Mat &result)
 {
     LOG(debug) << "Composing stitched image.";
+    double compose_scale = getComposeScale(source_images);
 
     // compute relative scales
     float compose_work_aspect =
@@ -149,6 +206,11 @@ void LowLevelOpenCVStitcher::compose(
 
         // update corner and size
         cv::Size sz = source_images.images[i].size();
+        if (std::abs(compose_scale - 1) > 1e-1) {
+            cv::Size image_size = source_images.sizes[i];
+            sz.width = cvRound(image_size.width * compose_scale);
+            sz.height = cvRound(image_size.height * compose_scale);
+        }
 
         cv::Mat K;
         cameras[i].K().convertTo(K, CV_32F);
@@ -159,19 +221,25 @@ void LowLevelOpenCVStitcher::compose(
 
     auto blender = prepareBlender(warp_results);
 
-    cv::Mat image_warped, image_warped_s;
+    cv::Mat image, image_warped, image_warped_s;
     cv::Mat dilated_mask, seam_mask, mask, mask_warped;
 
     for (size_t i = 0; i < source_images.images.size(); ++i) {
-        cv::Size image_size = source_images.images[i].size();
+        if (cv::abs(compose_scale - 1) > 1e-1) {
+            cv::resize(source_images.images[i], image, cv::Size(), compose_scale,
+                       compose_scale, cv::INTER_LINEAR_EXACT);
+        } else {
+            image = source_images.images[i];
+        }
+        source_images.images[i].release();
+        cv::Size image_size = image.size();
 
         cv::Mat K;
         cameras[i].K().convertTo(K, CV_32F);
 
         // warp the current image
-        warper->warp(source_images.images[i], K, cameras[i].R, cv::INTER_LINEAR, cv::BORDER_REFLECT,
+        warper->warp(image, K, cameras[i].R, cv::INTER_LINEAR, cv::BORDER_REFLECT,
                      image_warped);
-        source_images.images[i].release();
 
         // warp the current image mask
         mask.create(image_size, CV_8U);
@@ -203,18 +271,18 @@ void LowLevelOpenCVStitcher::compose(
 
 void LowLevelOpenCVStitcher::debugFeatures(SourceImages &source_images,
         std::vector<cv::detail::ImageFeatures> &features,
-        cv::DrawMatchesFlags flags)
+        double scale, cv::DrawMatchesFlags flags)
 {
-    if (!_debug) { return; }
+    if (!config.debug) { return; }
 
-    path image_path_base = _debugPath / "features";
+    path image_path_base = config.debug_path / "features";
     boost::filesystem::create_directories(image_path_base.string());
 
     cv::Mat source_image, features_image;
     for (size_t i = 0; i < features.size(); ++i) {
-        cv::drawKeypoints(source_images.images[features[i].img_idx],
-                          features[i].keypoints, features_image,
-                          cv::Scalar::all(-1), flags);
+        cv::resize(source_images.images[features[i].img_idx], source_image, cv::Size(), scale, scale);
+        cv::drawKeypoints(source_image, features[i].keypoints,
+                          features_image, cv::Scalar::all(-1), flags);
 
         std::string image_name = (boost::format("%1%.jpg") % std::to_string(features[i].img_idx)).str();
         std::string image_path = (image_path_base / image_name).string();
@@ -238,11 +306,11 @@ void LowLevelOpenCVStitcher::debugImages(SourceImages &source_images,
 void LowLevelOpenCVStitcher::debugMatches(SourceImages &source_images,
         std::vector<cv::detail::ImageFeatures> &features,
         std::vector<cv::detail::MatchesInfo> &matches,
-        float conf_threshold, cv::DrawMatchesFlags flags)
+        double scale, float conf_threshold, cv::DrawMatchesFlags flags)
 {
-    if (!_debug) { return; }
+    if (!config.debug) { return; }
 
-    path image_path_base = _debugPath / "matches";
+    path image_path_base = config.debug_path / "matches";
     boost::filesystem::create_directories(image_path_base.string());
 
     const int num_matches = static_cast<int>(matches.size());
@@ -252,9 +320,12 @@ void LowLevelOpenCVStitcher::debugMatches(SourceImages &source_images,
             continue;
         }
         
+        cv::Mat src_img, dst_img;
+        cv::resize(source_images.images[match.src_img_idx], src_img, cv::Size(), scale, scale, cv::INTER_LINEAR_EXACT);
+        cv::resize(source_images.images[match.dst_img_idx], dst_img, cv::Size(), scale, scale, cv::INTER_LINEAR_EXACT);
+
         cv::Mat img_matches;
-        cv::Mat src_img = source_images.images[match.src_img_idx];
-        cv::Mat dst_img = source_images.images[match.dst_img_idx];
+
         std::vector<cv::KeyPoint> src_keypoints = features[match.src_img_idx].getKeypoints();
         std::vector<cv::KeyPoint> dst_keypoints = features[match.dst_img_idx].getKeypoints();
         cv::drawMatches(src_img, src_keypoints, dst_img, dst_keypoints, match.matches, img_matches, cv::Scalar::all(-1),
@@ -272,16 +343,16 @@ void LowLevelOpenCVStitcher::debugMatches(SourceImages &source_images,
     for (size_t i = 0; i < source_images.images.size(); ++i) {
         image_names.push_back(std::to_string(i));
     }
-    std::string matches_graph_path = (_debugPath / "matches.dot").string();
+    std::string matches_graph_path = (config.debug_path / "matches.dot").string();
     std::ofstream matchesGraph(matches_graph_path);
     matchesGraph << cv::detail::matchesGraphAsString(image_names, matches, conf_threshold);
 }
 
 void LowLevelOpenCVStitcher::debugWarpResults(WarpResults &warp_results)
 {
-    if (!_debug) { return; }
+    if (!config.debug) { return; }
 
-    path image_path_base = _debugPath / "warp";
+    path image_path_base = config.debug_path / "warp";
     boost::filesystem::create_directories(image_path_base.string());
 
     for (size_t i = 0; i < warp_results.images_warped.size(); ++i) {
@@ -317,16 +388,20 @@ std::vector<cv::detail::CameraParams> LowLevelOpenCVStitcher::estimateCameraPara
 }
 
 std::vector<cv::detail::ImageFeatures>
-LowLevelOpenCVStitcher::findFeatures(SourceImages &source_images)
+LowLevelOpenCVStitcher::findFeatures(SourceImages &source_images, double work_scale)
 {
     LOG(debug) << "Finding features.";
     std::vector<cv::detail::ImageFeatures> features(source_images.images.size());
     cv::Ptr<cv::Feature2D> finder = getFeaturesFinder();
 
     for (size_t i = 0; i < source_images.images.size(); i++) {
-        cv::detail::computeImageFeatures(finder, source_images.images[i],
-                                         features[i]);
+        cv::Mat work_image;
+        cv::resize(source_images.images[i], work_image, cv::Size(), work_scale,
+                   work_scale, cv::INTER_LINEAR_EXACT);
 
+        cv::detail::computeImageFeatures(finder, work_image, features[i]);
+
+        work_image.release();
         features[i].img_idx = static_cast<int>(i);
     }
 
@@ -390,10 +465,6 @@ cv::Ptr<cv::detail::BundleAdjusterBase> LowLevelOpenCVStitcher::getBundleAdjuste
 
 double LowLevelOpenCVStitcher::getComposeScale(SourceImages &source_images)
 {
-    if (config.compose_megapix < 0) {
-        return 1.0;
-    }
-
     return cv::min(
             1.0,
             sqrt(config.compose_megapix * 1e6 / source_images.images[0].size().area()));
@@ -531,9 +602,7 @@ cv::Ptr<cv::detail::SeamFinder> LowLevelOpenCVStitcher::getSeamFinder()
         break;
     case SeamFinderType::GraphCutColorGrad: // TODO(bkd): optional GPU support
         seam_finder = cv::makePtr<cv::detail::GraphCutSeamFinder>(
-                cv::detail::GraphCutSeamFinder::COST_COLOR_GRAD,
-                config.seam_finder_graph_cut_terminal_cost,
-                config.seam_finder_graph_cut_bad_region_penalty);
+                cv::detail::GraphCutSeamFinder::COST_COLOR_GRAD);
         break;
     case SeamFinderType::Voronoi:
         seam_finder = cv::makePtr<cv::detail::VoronoiSeamFinder>();
@@ -548,10 +617,6 @@ cv::Ptr<cv::detail::SeamFinder> LowLevelOpenCVStitcher::getSeamFinder()
 
 double LowLevelOpenCVStitcher::getSeamScale(SourceImages &source_images)
 {
-    if (config.seam_megapix < 0) {
-        return 1.0;
-    }
-
     return cv::min(
             1.0, sqrt(config.seam_megapix * 1e6 / source_images.images[0].size().area()));
 }
@@ -633,9 +698,8 @@ cv::detail::WaveCorrectKind LowLevelOpenCVStitcher::getWaveCorrect()
 
 double LowLevelOpenCVStitcher::getWorkScale(SourceImages &source_images)
 {
-    if (config.work_megapix < 0) {
+    if (config.work_megapix < 0)
         return 1.0;
-    }
 
     return cv::min(
             1.0, sqrt(config.work_megapix * 1e6 / source_images.images[0].size().area()));
@@ -699,57 +763,36 @@ LowLevelOpenCVStitcher::prepareExposureCompensation(
 Stitcher::Report LowLevelOpenCVStitcher::stitch()
 {
     cv::Mat result;
-    
-    try {
-        Stitcher::Report report = stitch(result);
-    } catch (const std::exception &e) {
-        // can indeed throw, e.g.:
-        //.../OpenCV/modules/flann/src/miniflann.cpp:487: error: (-215:Assertion
-        // failed) (size_t)knn <= index_->size() in function 'runKnnSearch_' but
-        // that's
-        // nothing we shouldn't want to retry on.
-        throw RetriableError(e.what());
-    }
-
+    stitch(result);
     postprocess(std::move(result));
     return Stitcher::Report {};
 }
 
 void LowLevelOpenCVStitcher::cancel() { }
 
-Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
+void LowLevelOpenCVStitcher::stitch(cv::Mat &result)
 {
-    Stitcher::Report report;
     std::list<std::string> sourceImagePaths = _panorama.inputPaths();
 
-    // Load images and determine scales.
+    // Load images and determine work and seam scales.
     SourceImages source_images(_panorama, _logger);
     source_images.ensureImageCount();
-    source_images.scaleToAvailableMemory(_parameters.memoryBudgetMB,
-                                         _parameters.maxInputImageSize,
-                                         report.inputSizeMB,
-                                         report.inputScaled);
-    double seam_scale = getSeamScale(source_images);
     double work_scale = getWorkScale(source_images);
-    double compose_scale = getComposeScale(source_images);
+    double seam_scale = getSeamScale(source_images);
 
-    // Optionally undistort images for detected cameras with a
-    // known distortion model.
-    undistortImages(source_images);
+    undistortImages(source_images, config.debug, config.debug_path);
 
-    // Scale images down for feature detection and matching.
-    source_images.scale(work_scale);
-
-    // Find features and matches.
-    auto features = findFeatures(source_images);
-    debugFeatures(source_images, features);
+    // Find features, find matches, and scale images.
+    auto features = findFeatures(source_images, work_scale);
+    debugFeatures(source_images, features, work_scale);
     auto matches = matchFeatures(features);
-    debugMatches(source_images, features, matches, config.match_conf_thresh);
-    source_images.clear();
+    debugMatches(source_images, features, matches, work_scale, config.match_conf_thresh);
+    source_images.scale(seam_scale);
 
-    // Prepare to filter images with poor matching.
+    // Filter images with poor matching.
     auto keep_indices = cv::detail::leaveBiggestComponent(
             features, matches, static_cast<float>(config.match_conf_thresh));
+    source_images.filter(keep_indices);
 
     // Estimate and refine camera parameters.
     auto cameras = estimateCameraParameters(features, matches);
@@ -757,11 +800,6 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
 
     // Perform wave correction.
     waveCorrect(cameras);
-
-    // Reload images at seam scale.
-    source_images.reload();
-    source_images.filter(keep_indices);
-    source_images.scale(report.inputScaled * seam_scale);
 
     // Warp images.
     double median_focal_length = findMedianFocalLength(cameras);
@@ -785,17 +823,15 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     // Release memory.
     warp_results.images_warped_f.clear();
 
-    // Reload images at compose scale.
+    // Reload full size images and compose the stitched image.
     source_images.reload();
     source_images.filter(keep_indices);
-    source_images.scale(report.inputScaled * compose_scale);
-
-    // Compose the final panorama.
-    compose(source_images, cameras, exposure_compensator, warp_results,
-            work_scale, compose_scale, warped_image_scale, result);
+    compose(source_images, cameras, exposure_compensator, warp_results, work_scale,
+            warped_image_scale, result);
 }
 
-void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
+void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images,
+                                             bool debug, path debug_path)
 {
     boost::optional<Camera> camera_ = CameraModels().detect(_panorama.front());
     if (!camera_.has_value()) {
@@ -815,8 +851,8 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
         cv::Mat K = camera.K();
         camera.distortion_model->undistort(source_images.images, K);
 
-        if (_debug) {
-            path undistorted_image_path = _debugPath / "undistorted";
+        if (config.debug) {
+            path undistorted_image_path = config.debug_path / "undistorted";
             debugImages(source_images, undistorted_image_path);
         }
 
