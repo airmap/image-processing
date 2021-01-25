@@ -55,6 +55,9 @@ protected:
 /**
  * @brief OpencCVDistortionModel
  * Pinhole distortion model.
+ *
+ * OpenCV undistort documentation:
+ *  - https://docs.opencv.org/4.2.0/d9/d0c/group__calib3d.html#ga69f2545a8b62a6b0fc2ee060dc30559d
  */
 class PinholeDistortionModel : public DistortionModel
 {

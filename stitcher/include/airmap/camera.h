@@ -13,13 +13,11 @@ namespace stitcher {
  * Contains information about the camera, including
  * intrinsics, distortion coefficients, and field of view.
  *
- * NOTE(bkd):
- * This isn't used currently, but will be soon, at least for
- * undistortion.  For undistortion, we'll need to detect the
- * camera model, and use the associated intrinsics and
- * distortion coefficients to undistort the images.
- * This also could be used for estimatiion based on known camera
- * intrinsics and gimbal orientation.
+ * This is currently used for undistortion, homography calculation,
+ * and rotation calculation.
+ *
+ * OpenCV camera calibration documentation:
+ *  - https://docs.opencv.org/4.2.0/d9/d0c/group__calib3d.html#ga3207604e4b1a1758aa66acb6ed5aa65d
  */
 struct Camera
 {
