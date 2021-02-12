@@ -142,7 +142,7 @@ void SourceImages::scaleToAvailableMemory(size_t memoryBudgetMB,
         scale(inputScaled, interpolation);
 
         std::stringstream message;
-        message << "Scaled " << inputSizeMB << " MB of input to"
+        message << "Scaled " << inputSizeMB << " MB of input to "
                 << inputSizeMB * inputScaled << " MB (by "
                 << inputScaled << "), the lesser of: ";
         _logger->log(Logger::Severity::info, message, "stitcher");
