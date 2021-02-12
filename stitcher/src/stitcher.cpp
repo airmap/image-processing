@@ -192,6 +192,8 @@ void LowLevelOpenCVStitcher::compose(
     }
 
     auto blender = prepareBlender(warp_results);
+    warp_results.masks.clear();
+    warp_results.images_warped.clear();
 
     cv::Mat image_warped, image_warped_s;
     cv::Mat dilated_mask, seam_mask, mask, mask_warped;
@@ -222,12 +224,17 @@ void LowLevelOpenCVStitcher::compose(
         mask.release();
 
         cv::dilate(warp_results.masks_warped[i], dilated_mask, cv::Mat());
+        warp_results.masks_warped[i].release();
         cv::resize(dilated_mask, seam_mask, mask_warped.size(), 0, 0,
                    cv::INTER_LINEAR_EXACT);
+        dilated_mask.release();
         mask_warped = seam_mask & mask_warped;
+        seam_mask.release();
 
         // blend the current image
         blender->feed(image_warped_s, mask_warped, warp_results.corners[i]);
+        image_warped_s.release();
+        mask_warped.release();
     }
 
     cv::Mat result_mask;
