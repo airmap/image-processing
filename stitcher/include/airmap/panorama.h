@@ -21,6 +21,7 @@ namespace filesystem {
  */
 class path {
     public:
+        path();
         path(const std::string& p);
 
         inline std::string string() const {

@@ -12,11 +12,13 @@
 namespace airmap {
 namespace filesystem {
 
+path::path() {}
+
 path::path(const std::string &p)
     : _path(p)
 {
     if (_path.back() == separator()) {
-        _path = _path.substr(0, _path.size() - 1);
+        _path.erase(_path.size() - 1, 1);
     }
 }
 
@@ -24,7 +26,7 @@ path path::parent_path() const
 {
     size_t last_slash = _path.find_last_of(separator());
     if (last_slash == std::string::npos) {
-        return path("");
+        return {};
     }
     return _path.substr(0, last_slash);
 }
@@ -32,11 +34,15 @@ path path::parent_path() const
 std::string path::stem() const
 {
     std::string result = _path;
-    size_t last_slash = _path.find_last_of(separator());
-    if (last_slash != std::string::npos) {
-        result = result.substr(last_slash);
+    size_t pos = _path.find_last_of(separator());
+    if (pos != std::string::npos) {
+        result.erase(pos);
     }
-    return result.substr(0, result.find_last_of("."));
+    pos = result.find_last_of(".");
+    if (pos != std::string::npos) {
+        result.erase(0, pos);
+    }
+    return result;
 }
 } // namespace filesystem
 
