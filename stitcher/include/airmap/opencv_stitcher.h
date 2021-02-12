@@ -1,7 +1,6 @@
 #pragma once
 
 #include <boost/format.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/optional.hpp>
 
 #include <opencv2/core/ocl.hpp>
@@ -28,8 +27,6 @@
 #include "airmap/images.h"
 #include "airmap/logging.h"
 #include "airmap/stitcher.h"
-
-using boost::filesystem::path;
 
 namespace airmap {
 namespace stitcher {
