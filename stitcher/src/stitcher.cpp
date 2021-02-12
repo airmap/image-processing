@@ -380,8 +380,8 @@ double LowLevelOpenCVStitcher::findMedianFocalLength(
     if (focal_lengths.size() % 2 == 1) {
         return focal_lengths[focal_lengths.size() / 2];
     } else {
-        return focal_lengths[focal_lengths.size() / 2 - 1]
-                + focal_lengths[focal_lengths.size() / 2] * 0.5;
+        return (focal_lengths[focal_lengths.size() / 2 - 1]
+                + focal_lengths[focal_lengths.size() / 2]) * 0.5;
     }
 }
 
