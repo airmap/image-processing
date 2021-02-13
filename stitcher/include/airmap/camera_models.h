@@ -5,7 +5,6 @@
 #include "airmap/panorama.h"
 
 #include <boost/optional.hpp>
-#include <iostream>
 
 namespace airmap {
 namespace stitcher {

@@ -14,36 +14,55 @@ namespace filesystem {
 
 path::path() {}
 
+path::path(const char &p)
+    : _path(std::string(1, p))
+{
+}
+
 path::path(const std::string &p)
     : _path(p)
 {
-    if (_path.back() == separator()) {
-        _path.erase(_path.size() - 1, 1);
+}
+
+path path::filename() const
+{
+    size_t pos = _path.find_last_of("/");
+    if (pos == 0 && _path.size() == 1) {
+        return {_path};
     }
+    if (pos == _path.size() - 1) {
+        return dot();
+    }
+    if (pos == std::string::npos) {
+        return {_path};
+    }
+    return {_path.substr(pos + 1)};
 }
 
 path path::parent_path() const
 {
-    size_t last_slash = _path.find_last_of(separator());
-    if (last_slash == std::string::npos) {
+    size_t pos = _path.find_last_of(separator());
+    if (pos == std::string::npos) {
         return {};
     }
-    return _path.substr(0, last_slash);
+    if (pos == 0 && _path.size() > 1) {
+        return {separator()};
+    }
+    return {_path.substr(0, pos)};
 }
 
-std::string path::stem() const
+path path::stem() const
 {
-    std::string result = _path;
-    size_t pos = _path.find_last_of(separator());
-    if (pos != std::string::npos) {
-        result.erase(pos);
+    path name(filename());
+    if (name == dot_path() || name == dot_dot_path()) {
+        return name;
     }
-    pos = result.find_last_of(".");
-    if (pos != std::string::npos) {
-        result.erase(0, pos);
-    }
-    return result;
+    size_t pos(name.string().find_last_of(dot()));
+    return pos == std::string::npos
+        ? name
+        : name.string().substr(0, pos);
 }
+
 } // namespace filesystem
 
 namespace stitcher {

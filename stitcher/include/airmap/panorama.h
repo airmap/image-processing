@@ -22,14 +22,16 @@ namespace filesystem {
 class path {
     public:
         path();
+        path(const char& p);
         path(const std::string& p);
 
         inline std::string string() const {
             return _path;
         }
 
+        path filename() const;
         path parent_path() const;
-        std::string stem() const;
+        path stem() const;
 
         inline bool operator==(const path& other) const {
             return _path == other._path;
@@ -37,6 +39,30 @@ class path {
 
         inline bool operator!=(const path& other) const {
             return _path != other._path;
+        }
+
+        inline static std::string dot() {
+#ifdef _WIN32
+            return L".";
+#else
+            return ".";
+#endif
+        }
+
+        inline static std::string dot_dot() {
+#ifdef _WIN32
+            return L"..";
+#else
+            return "..";
+#endif
+        }
+
+        inline static path dot_path() {
+            return path(dot());
+        }
+
+        inline static path dot_dot_path() {
+            return path(dot_dot());
         }
 
         inline static char separator() {
