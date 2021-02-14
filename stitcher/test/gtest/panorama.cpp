@@ -3,8 +3,6 @@
 
 #include <boost/filesystem/path.hpp>
 
-// MOVE airmap::filesystem to filesystem.h
-
 using airmap_path = airmap::filesystem::path;
 using boost_path = boost::filesystem::path;
 
