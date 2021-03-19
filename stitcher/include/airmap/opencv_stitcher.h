@@ -473,7 +473,7 @@ private:
      * @param source_images
      * @param path
      */
-    void debugImages(SourceImages &source_images, path debug_path);
+    void debugImages(std::vector<cv::Mat> &images, path debug_path);
 
     /**
      * @brief debugMatches
@@ -646,6 +646,17 @@ private:
      * @param source_images Source images object.
      */
     void undistortImages(SourceImages &source_images);
+
+    /**
+     * @brief undistortCropImages
+     * Optionally crop images based on the distortion model.
+     * camera model can be identified, and is required for that camera.
+     * This happens after feature matching and bundle adjustment so that the
+     * entire frame can be used for computing the homography before cropping
+     * removes areas where there are good features.
+     * @param source_images Source images object.
+     */
+    void undistortCropImages(SourceImages &source_images);
 
     /**
      * @brief warpImages

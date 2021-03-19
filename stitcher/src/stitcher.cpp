@@ -253,7 +253,7 @@ void LowLevelOpenCVStitcher::debugFeatures(SourceImages &source_images,
 
     cv::Mat source_image, features_image;
     for (size_t i = 0; i < features.size(); ++i) {
-        cv::drawKeypoints(source_images.images[features[i].img_idx],
+        cv::drawKeypoints(source_images.images_scaled[features[i].img_idx],
                           features[i].keypoints, features_image,
                           cv::Scalar::all(-1), flags);
 
@@ -264,15 +264,15 @@ void LowLevelOpenCVStitcher::debugFeatures(SourceImages &source_images,
     }
 }
 
-void LowLevelOpenCVStitcher::debugImages(SourceImages &source_images,
+void LowLevelOpenCVStitcher::debugImages(std::vector<cv::Mat> &images,
                                          path debug_path)
 {
     boost::filesystem::create_directories(debug_path.string());
 
-    for (size_t i = 0; i < source_images.images_scaled.size(); ++i) {
+    for (size_t i = 0; i < images.size(); ++i) {
         std::string image_name = (boost::format("%1%.jpg") % std::to_string(i)).str();
         std::string image_path = (debug_path / image_name).string();
-        cv::imwrite(image_path, source_images.images_scaled[i]);
+        cv::imwrite(image_path, images[i]);
     }
 }
 
@@ -768,20 +768,24 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     Stitcher::Report report;
     std::list<std::string> sourceImagePaths = _panorama.inputPaths();
 
-    // Load images and determine scales.
+    // Load images.
     SourceImages source_images(_panorama, _logger);
     source_images.ensureImageCount();
-    source_images.scaleToAvailableMemory(_parameters.memoryBudgetMB,
-                                         _parameters.maxInputImageSize,
-                                         report.inputSizeMB,
-                                         report.inputScaled);
-    double seam_scale = getSeamScale(source_images);
-    double work_scale = getWorkScale(source_images);
-    double compose_scale = getComposeScale(source_images);
 
     // Optionally undistort images for detected cameras with a
     // known distortion model.
     undistortImages(source_images);
+
+    // Scale images based on available memory.
+    source_images.scaleToAvailableMemory(_parameters.memoryBudgetMB,
+                                         _parameters.maxInputImageSize,
+                                         report.inputSizeMB,
+                                         report.inputScaled);
+
+    // Determine scales for operations.
+    double seam_scale = getSeamScale(source_images);
+    double work_scale = getWorkScale(source_images);
+    double compose_scale = getComposeScale(source_images);
 
     // Scale images down for feature detection and matching.
     source_images.scale(work_scale);
@@ -792,9 +796,10 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     auto matches = matchFeatures(features);
     debugMatches(source_images, features, matches, config.match_conf_thresh);
 
-    // Prepare to filter images with poor matching.
+    // Filter images with poor matching.
     auto keep_indices = cv::detail::leaveBiggestComponent(
             features, matches, static_cast<float>(config.match_conf_thresh));
+    source_images.filter(keep_indices);
 
     // Estimate and refine camera parameters.
     auto cameras = estimateCameraParameters(features, matches);
@@ -802,6 +807,9 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
 
     // Perform wave correction.
     waveCorrect(cameras);
+
+    // Crop images based on the distortion model.
+    undistortCropImages(source_images);
 
     // Scale images to seam scale.
     source_images.scale(seam_scale);
@@ -863,10 +871,38 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 
         if (_debug) {
             path undistorted_image_path = _debugPath / "undistorted";
-            debugImages(source_images, undistorted_image_path);
+            debugImages(source_images.images, undistorted_image_path);
         }
 
         _logger->log(logging::Logger::Severity::debug, "Finished undistorting images.", "stitcher");
+    }
+}
+
+void LowLevelOpenCVStitcher::undistortCropImages(SourceImages &source_images)
+{
+    boost::optional<Camera> camera_ = CameraModels().detect(_panorama.front());
+    if (!camera_.has_value()) {
+        _logger->log(logging::Logger::Severity::debug, "Camera model not identified.", "stitcher");
+        return;
+    }
+
+    Camera camera = camera_.get();
+    if (!camera.distortion_model) {
+        _logger->log(logging::Logger::Severity::debug, "Camera model doesn't have a distortion model.  Skipping undistortion.", "stitcher");
+        return;
+    }
+
+    if (camera.distortion_model->enabled()) {
+        std::stringstream ss;
+        _logger->log(logging::Logger::Severity::debug, "Undistortion cropping images.", "stitcher");
+        camera.distortion_model->crop(source_images.images);
+
+        if (_debug) {
+            path undistorted_image_path = _debugPath / "undistortion_crop";
+            debugImages(source_images.images, undistorted_image_path);
+        }
+
+        _logger->log(logging::Logger::Severity::debug, "Finished undistortion cropping images.", "stitcher");
     }
 }
 

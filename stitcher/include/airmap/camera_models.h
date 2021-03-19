@@ -94,7 +94,10 @@ struct CameraModels
             pol, inv_pol, xc, yc, c, d, e, width, height, scale_factor,
             resolution_scale);
         auto distortion_model = std::make_shared<ScaramuzzaDistortionModel>(
-            distortion_parameters);
+            distortion_parameters, true, [height](const cv::Mat &image) -> cv::Rect {
+                return cv::Rect(cv::Point(0, 0), cv::Point(image.size().width,
+                                (2083./height) * image.size().height));
+            });
 
         return Camera(focal_length_meters, sensor_dimensions_meters,
                       sensor_dimensions_pixels, principal_point,

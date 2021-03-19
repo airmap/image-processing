@@ -8,16 +8,33 @@ namespace stitcher {
 // DistortionModel
 // 
 //
+DistortionModel::DistortionModel(bool enabled_, CropROICb crop_roi_cb_)
+    : _enabled(enabled_)
+    , _crop_roi_cb(crop_roi_cb_)
+{
+}
+
 DistortionModel::~DistortionModel() { }
 
-bool DistortionModel::enabled() const
+const bool DistortionModel::enabled() const
 {
     return _enabled;
 }
 
-DistortionModel::DistortionModel(bool enabled_)
-    : _enabled(enabled_)
-{
+void DistortionModel::crop(cv::Mat &image, cv::Rect &roi) {
+    if (_crop_roi_cb) {
+        cv::Mat cropped = image(roi);
+        cropped.copyTo(image);
+    }
+}
+
+void DistortionModel::crop(std::vector<cv::Mat> &images) {
+    if (_crop_roi_cb) {
+        cv::Rect roi = _crop_roi_cb(images[0]);
+        for (auto &image : images) {
+            crop(image, roi);
+        }
+    }
 }
 
 //
@@ -117,8 +134,9 @@ std::ostream& operator<<(std::ostream &os,
 //
 
 PinholeDistortionModel::PinholeDistortionModel(const Parameters parameters_,
-                                               bool enabled_)
-    : DistortionModel(enabled_)
+                                               bool enabled_,
+                                               CropROICb crop_roi_cb_)
+    : DistortionModel(enabled_, crop_roi_cb_)
     , _parameters(parameters_)
 {
 }
@@ -165,8 +183,9 @@ ScaramuzzaDistortionModel::Parameters::Parameters()
 // 
 //
 ScaramuzzaDistortionModel::ScaramuzzaDistortionModel(const Parameters parameters_,
-                                                     bool enabled_)
-    : DistortionModel(enabled_)
+                                                     bool enabled_,
+                                                     CropROICb crop_roi_cb_)
+    : DistortionModel(enabled_, crop_roi_cb_)
     , _parameters(parameters_)
 {
 }
