@@ -38,9 +38,15 @@ struct SourceImages
 
     /**
      * @brief images
-     * The loaded images.
+     * The original images.
      */
     std::vector<cv::Mat> images;
+
+    /**
+     * @brief images_scaled;
+     * The scaled images.
+     */
+    std::vector<cv::Mat> images_scaled;
 
     /**
      * @brief logger
@@ -58,16 +64,7 @@ struct SourceImages
      * @param panorama Source image paths and metadata.
      */
     SourceImages(const Panorama &panorama, std::shared_ptr<Logger> logger,
-                 const int _minimumImageCount = 2)
-        : panorama(panorama)
-        , images()
-        , _logger(logger)
-        , minimumImageCount(_minimumImageCount)
-    {
-        resize(static_cast<size_t>(panorama.size()));
-        load();
-        ensureImageCount();
-    }
+                 const int _minimumImageCount = 2);
 
     /**
      * @brief clear
@@ -110,7 +107,7 @@ struct SourceImages
 
     /**
      * @brief scale
-     * Scale images in place.
+     * Scale images and store in images_scaled.
      * @param scale
      * @param interpolation
      */

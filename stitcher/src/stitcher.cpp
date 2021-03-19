@@ -174,7 +174,7 @@ void LowLevelOpenCVStitcher::compose(
     auto warper = warp_creator->create(compose_work_scale);
 
     // update corners and sizes
-    for (size_t i = 0; i < source_images.images.size(); ++i) {
+    for (size_t i = 0; i < source_images.images_scaled.size(); ++i) {
         // update intrinsics
         double intrinsic_scale = static_cast<double>(compose_work_aspect);
         cameras[i].focal *= intrinsic_scale;
@@ -182,7 +182,7 @@ void LowLevelOpenCVStitcher::compose(
         cameras[i].ppy *= intrinsic_scale;
 
         // update corner and size
-        cv::Size sz = source_images.images[i].size();
+        cv::Size sz = source_images.images_scaled[i].size();
 
         cv::Mat K;
         cameras[i].K().convertTo(K, CV_32F);
@@ -198,16 +198,16 @@ void LowLevelOpenCVStitcher::compose(
     cv::Mat image_warped, image_warped_s;
     cv::Mat dilated_mask, seam_mask, mask, mask_warped;
 
-    for (size_t i = 0; i < source_images.images.size(); ++i) {
-        cv::Size image_size = source_images.images[i].size();
+    for (size_t i = 0; i < source_images.images_scaled.size(); ++i) {
+        cv::Size image_size = source_images.images_scaled[i].size();
 
         cv::Mat K;
         cameras[i].K().convertTo(K, CV_32F);
 
         // warp the current image
-        warper->warp(source_images.images[i], K, cameras[i].R, cv::INTER_LINEAR, cv::BORDER_REFLECT,
+        warper->warp(source_images.images_scaled[i], K, cameras[i].R, cv::INTER_LINEAR, cv::BORDER_REFLECT,
                      image_warped);
-        source_images.images[i].release();
+        source_images.images_scaled[i].release();
 
         // warp the current image mask
         mask.create(image_size, CV_8U);
@@ -269,10 +269,10 @@ void LowLevelOpenCVStitcher::debugImages(SourceImages &source_images,
 {
     boost::filesystem::create_directories(debug_path.string());
 
-    for (size_t i = 0; i < source_images.images.size(); ++i) {
+    for (size_t i = 0; i < source_images.images_scaled.size(); ++i) {
         std::string image_name = (boost::format("%1%.jpg") % std::to_string(i)).str();
         std::string image_path = (debug_path / image_name).string();
-        cv::imwrite(image_path, source_images.images[i]);
+        cv::imwrite(image_path, source_images.images_scaled[i]);
     }
 }
 
@@ -294,8 +294,8 @@ void LowLevelOpenCVStitcher::debugMatches(SourceImages &source_images,
         }
         
         cv::Mat img_matches;
-        cv::Mat src_img = source_images.images[match.src_img_idx];
-        cv::Mat dst_img = source_images.images[match.dst_img_idx];
+        cv::Mat src_img = source_images.images_scaled[match.src_img_idx];
+        cv::Mat dst_img = source_images.images_scaled[match.dst_img_idx];
         std::vector<cv::KeyPoint> src_keypoints = features[match.src_img_idx].getKeypoints();
         std::vector<cv::KeyPoint> dst_keypoints = features[match.dst_img_idx].getKeypoints();
         cv::drawMatches(src_img, src_keypoints, dst_img, dst_keypoints, match.matches, img_matches, cv::Scalar::all(-1),
@@ -309,8 +309,8 @@ void LowLevelOpenCVStitcher::debugMatches(SourceImages &source_images,
 
     // Create and save matches graph.
     std::vector<std::string> image_names;
-    image_names.reserve(source_images.images.size());
-    for (size_t i = 0; i < source_images.images.size(); ++i) {
+    image_names.reserve(source_images.images_scaled.size());
+    for (size_t i = 0; i < source_images.images_scaled.size(); ++i) {
         image_names.push_back(std::to_string(i));
     }
     std::string matches_graph_path = (_debugPath / "matches.dot").string();
@@ -364,8 +364,8 @@ LowLevelOpenCVStitcher::findFeatures(SourceImages &source_images)
     std::vector<cv::detail::ImageFeatures> features(source_images.images.size());
     cv::Ptr<cv::Feature2D> finder = getFeaturesFinder();
 
-    for (size_t i = 0; i < source_images.images.size(); i++) {
-        cv::detail::computeImageFeatures(finder, source_images.images[i],
+    for (size_t i = 0; i < source_images.images_scaled.size(); i++) {
+        cv::detail::computeImageFeatures(finder, source_images.images_scaled[i],
                                          features[i]);
 
         features[i].img_idx = static_cast<int>(i);
@@ -791,7 +791,6 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     debugFeatures(source_images, features);
     auto matches = matchFeatures(features);
     debugMatches(source_images, features, matches, config.match_conf_thresh);
-    source_images.clear();
 
     // Prepare to filter images with poor matching.
     auto keep_indices = cv::detail::leaveBiggestComponent(
@@ -804,10 +803,8 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     // Perform wave correction.
     waveCorrect(cameras);
 
-    // Reload images at seam scale.
-    source_images.reload();
-    source_images.filter(keep_indices);
-    source_images.scale(report.inputScaled * seam_scale);
+    // Scale images to seam scale.
+    source_images.scale(seam_scale);
 
     // Warp images.
     double median_focal_length = findMedianFocalLength(cameras);
@@ -821,7 +818,6 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     auto exposure_compensator = prepareExposureCompensation(warp_results);
 
     // Release memory.
-    source_images.clear();
     warp_results.images_warped.clear();
     warp_results.masks.clear();
 
@@ -831,10 +827,11 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     // Release memory.
     warp_results.images_warped_f.clear();
 
-    // Reload images at compose scale.
-    source_images.reload();
-    source_images.filter(keep_indices);
-    source_images.scale(report.inputScaled * compose_scale);
+    // Scale images to compose scale.
+    source_images.scale(compose_scale);
+
+    // Release memory
+    source_images.images.clear();
 
     // Compose the final panorama.
     compose(source_images, cameras, exposure_compensator, warp_results,
@@ -858,6 +855,7 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
     }
 
     if (camera.distortion_model->enabled()) {
+        std::stringstream ss;
         _logger->log(logging::Logger::Severity::debug, "Undistorting images.", "stitcher");
 
         cv::Mat K = camera.K();
@@ -882,12 +880,12 @@ LowLevelOpenCVStitcher::warpImages(SourceImages &source_images,
     auto warper_creator = getWarperCreator();
     auto warper = warper_creator->create(warped_image_scale * seam_work_aspect);
 
-    size_t image_count = source_images.images.size();
+    size_t image_count = source_images.images_scaled.size();
     WarpResults warp_results(image_count);
 
     // Prepare image masks
     for (size_t i = 0; i < image_count; ++i) {
-        warp_results.masks[i].create(source_images.images[i].size(), CV_8U);
+        warp_results.masks[i].create(source_images.images_scaled[i].size(), CV_8U);
         warp_results.masks[i].setTo(cv::Scalar::all(255));
     }
 
@@ -900,7 +898,7 @@ LowLevelOpenCVStitcher::warpImages(SourceImages &source_images,
         K(1, 2) *= seam_work_aspect;
 
         warp_results.corners[i] =
-                warper->warp(source_images.images[i], K, cameras[i].R, cv::INTER_LINEAR,
+                warper->warp(source_images.images_scaled[i], K, cameras[i].R, cv::INTER_LINEAR,
                              cv::BORDER_REFLECT, warp_results.images_warped[i]);
         warp_results.sizes[i] = warp_results.images_warped[i].size();
         warper->warp(warp_results.masks[i], K, cameras[i].R, cv::INTER_NEAREST,

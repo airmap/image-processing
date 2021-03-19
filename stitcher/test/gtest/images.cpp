@@ -183,21 +183,44 @@ TEST_F(SourceImagesTest, sourceImagesScale)
         EXPECT_EQ(source_images->images[i].size(), image_size);
     }
 
+    for (size_t i = 0; i < source_images->images_scaled.size(); ++i) {
+        EXPECT_EQ(source_images->images_scaled[i].size(), image_size);
+    }
+
     double scale = 0.8;
     source_images->scale(scale);
-    image_size.width = image_size.width * scale + 1;
-    image_size.height  = image_size.height * scale;
     for (size_t i = 0; i < source_images->images.size(); ++i) {
         EXPECT_EQ(source_images->images[i].size().width, image_size.width);
         EXPECT_EQ(source_images->images[i].size().height, image_size.height);
     }
+    image_size.width = round(image_size.width * scale);
+    image_size.height  = round(image_size.height * scale);
+    for (size_t i = 0; i < source_images->images_scaled.size(); ++i) {
+        EXPECT_EQ(source_images->images_scaled[i].size().width, image_size.width);
+        EXPECT_EQ(source_images->images_scaled[i].size().height, image_size.height);
+    }
 
-    scale = 0.31;
+    image_size = source_images->images[0].size();
+    scale = 0.30;
     source_images->scale(scale);
-    image_size.width = image_size.width * scale + 1;
-    image_size.height  = image_size.height * scale;
     for (size_t i = 0; i < source_images->images.size(); ++i) {
         EXPECT_EQ(source_images->images[i].size().width, image_size.width);
         EXPECT_EQ(source_images->images[i].size().height, image_size.height);
+    }
+    image_size.width = round(image_size.width * scale);
+    image_size.height = round(image_size.height * scale);
+    for (size_t i = 0; i < source_images->images_scaled.size(); ++i) {
+        EXPECT_EQ(source_images->images_scaled[i].size().width, image_size.width);
+        EXPECT_EQ(source_images->images_scaled[i].size().height, image_size.height);
+    }
+
+    image_size = source_images->images[0].size();
+    scale = 0.31;
+    source_images->scale(scale);
+    image_size.width = round(image_size.width * scale);
+    image_size.height = round(image_size.height * scale);
+    for (size_t i = 0; i < source_images->images_scaled.size(); ++i) {
+        EXPECT_EQ(source_images->images_scaled[i].size().width, image_size.width);
+        EXPECT_EQ(source_images->images_scaled[i].size().height, image_size.height);
     }
 }

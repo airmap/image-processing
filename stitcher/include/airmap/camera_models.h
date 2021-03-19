@@ -78,21 +78,17 @@ struct CameraModels
         cv::Point2d principal_point(sensor_dimensions_pixels.x / 2,
                                     sensor_dimensions_pixels.y / 2);
 
-        std::vector<double> pol = { -1.304378e+03, 0.000000e+00, 5.113289e-04,
-                                    -3.677822e-07, 2.496957e-10 };
-        std::vector<double>inv_pol = { 1199.260777, -2648.472276, -12773.986580,
-                                       -27539.670273, -36582.498387,
-                                       -29546.356228, -14151.354913,
-                                       -3691.813594, -403.401517 };
-        double xc = 959.042242;
-        double yc = 539.041192;
-        double c = 0.999434;
-        double d = -0.000385;
-        double e = -0.000025;
-        double width = 1920;
-        double height = 1080;
+        std::vector<double> pol = { -2.863252e+03, 0.000000e+00, 4.060925e-04, -2.040622e-07, 5.342978e-11 };
+        std::vector<double>inv_pol = { -2319.757678, -49354.733874, -202871.366882, -464932.147854, -669902.465355, -625830.239054, -379865.964545, -145131.700716, -31852.275059, -3077.921163 };
+        double xc = 2061.334454;
+        double yc = 1141.123668;
+        double c = 0.999510;
+        double d = -0.000090;
+        double e = 0.000028;
+        double width = 3840;
+        double height = 2160;
         double scale_factor = 1.5;
-        double resolution_scale = 2;
+        double resolution_scale = 1;
 
         auto distortion_parameters = ScaramuzzaDistortionModel::Parameters(
             pol, inv_pol, xc, yc, c, d, e, width, height, scale_factor,
