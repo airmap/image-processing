@@ -191,7 +191,7 @@ public:
     static constexpr long MaxTimeFromPreviousSec = 30;
     static constexpr long MaxSpatialDistanceMts = 5;
     static constexpr double MaxAngularDistanceDeg = 20;
-    static constexpr int MinImageCount = 7;
+    static constexpr int MinImageCount = 20;
     static constexpr char PanoramaFileExtension[] = ".panorama.jpg";
 
     struct Parameters
