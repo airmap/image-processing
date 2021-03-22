@@ -16,7 +16,7 @@ DistortionModel::DistortionModel(bool enabled_, CropROICb crop_roi_cb_)
 
 DistortionModel::~DistortionModel() { }
 
-const bool DistortionModel::enabled() const
+bool DistortionModel::enabled() const
 {
     return _enabled;
 }

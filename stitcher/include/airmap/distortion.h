@@ -43,7 +43,7 @@ public:
      * @brief enabled
      * Whether undistortion is enabled.
      */
-    const bool enabled() const;
+    bool enabled() const;
 
     /**
      * @brief undistort
