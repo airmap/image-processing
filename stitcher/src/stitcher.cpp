@@ -225,6 +225,13 @@ void LowLevelOpenCVStitcher::compose(
 
         cv::dilate(warp_results.masks_warped[i], dilated_mask, cv::Mat());
         warp_results.masks_warped[i].release();
+        std::stringstream ss;
+        ss << "Scaling mask mask_warped.size: "
+           << mask_warped.size().width << " x "
+           << mask_warped.size().height << " dilated_mask.size: "
+           << dilated_mask.size().width << " x "
+           << dilated_mask.size().height;
+        _logger->log(logging::Logger::Severity::debug, ss, "stitcher");
         cv::resize(dilated_mask, seam_mask, mask_warped.size(), 0, 0,
                    cv::INTER_LINEAR_EXACT);
         dilated_mask.release();
