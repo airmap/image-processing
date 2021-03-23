@@ -110,9 +110,6 @@ void SourceImages::resize(size_t new_size)
 void SourceImages::scale(double scale, int interpolation)
 {
     for (size_t i = 0; i < images.size(); ++i) {
-        std::stringstream ss;
-        ss << "Scaling image.  scale: " << scale;
-        _logger->log(logging::Logger::Severity::info, ss, "stitcher");
         cv::resize(images[i], images_scaled[i], cv::Size(), scale, scale, interpolation);
     }
 }
