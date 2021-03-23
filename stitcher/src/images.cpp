@@ -62,7 +62,7 @@ void SourceImages::filter(std::vector<int> &keep_indices)
 
     std::stringstream message;
     message << "Discarded " << original_count - keep_count << " images.";
-    _logger->log(Logger::Severity::debug, message, "stitcher");
+    _logger->log(Logger::Severity::info, message, "stitcher");
 
     ensureImageCount();
 }
@@ -112,7 +112,7 @@ void SourceImages::scale(double scale, int interpolation)
     for (size_t i = 0; i < images.size(); ++i) {
         std::stringstream ss;
         ss << "Scaling image.  scale: " << scale;
-        _logger->log(logging::Logger::Severity::debug, ss, "stitcher");
+        _logger->log(logging::Logger::Severity::info, ss, "stitcher");
         cv::resize(images[i], images_scaled[i], cv::Size(), scale, scale, interpolation);
     }
 }
