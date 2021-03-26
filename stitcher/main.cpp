@@ -71,8 +71,8 @@ int main(int argc, char *argv[])
         };
         RetryingStitcher{
             std::make_shared<LowLevelOpenCVStitcher>(
-                LowLevelOpenCVStitcher::Configuration(
-                    LowLevelOpenCVStitcher::StitchType::ThreeSixty),
+                Configuration(
+                    StitchType::ThreeSixty),
                 Panorama{input},
                 parameters,
                 vm["output"].as<std::string>(),

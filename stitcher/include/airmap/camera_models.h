@@ -99,10 +99,19 @@ struct CameraModels
                                 (2083./height) * image.size().height));
             });
 
+        Camera::ConfigurationCb configurationCb = [](
+            const Configuration &configuration, StitchType stitchType) {
+                Configuration updatedConfiguration = configuration;
+                if (stitchType == StitchType::ThreeSixty) {
+                    updatedConfiguration.match_conf = 0.45f;
+                }
+                return updatedConfiguration;
+        };
+
         return Camera(focal_length_meters, sensor_dimensions_meters,
                       sensor_dimensions_pixels, principal_point,
                       boost::optional<cv::Mat>(),
-                      distortion_model);
+                      distortion_model, configurationCb);
     }
 };
 

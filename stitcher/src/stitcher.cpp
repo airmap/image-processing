@@ -139,7 +139,13 @@ LowLevelOpenCVStitcher::LowLevelOpenCVStitcher(const Configuration &config,
                                                std::shared_ptr<logging::Logger> logger,
                                                bool debug, path debugPath)
     : OpenCVStitcher(panorama, parameters, outputPath, logger, debug, debugPath)
-    , config(config) {};
+    , _camera(CameraModels().detect(panorama.front()))
+    , _config((_camera.has_value() ?
+        _camera.get().configuration(config, config.stitch_type) :
+        config)
+    )
+{
+}
 
 void LowLevelOpenCVStitcher::adjustCameraParameters(
         std::vector<cv::detail::ImageFeatures> &features,
@@ -405,7 +411,7 @@ cv::Ptr<cv::detail::BundleAdjusterBase> LowLevelOpenCVStitcher::getBundleAdjuste
 {
     cv::Ptr<cv::detail::BundleAdjusterBase> bundle_adjuster;
 
-    switch (config.bundle_adjuster_type) {
+    switch (_config.bundle_adjuster_type) {
     case BundleAdjusterType::Reproj:
         bundle_adjuster = cv::makePtr<cv::detail::BundleAdjusterReproj>();
         break;
@@ -420,7 +426,7 @@ cv::Ptr<cv::detail::BundleAdjusterBase> LowLevelOpenCVStitcher::getBundleAdjuste
         break;
     }
 
-    bundle_adjuster->setConfThresh(config.match_conf_thresh);
+    bundle_adjuster->setConfThresh(_config.match_conf_thresh);
 
     // TODO(bkd): get from config
     cv::Mat_<uchar> refine_mask = (cv::Mat_<uchar>(3, 3) << 1, 1, 1, 1, 1, 1, 1);
@@ -431,20 +437,20 @@ cv::Ptr<cv::detail::BundleAdjusterBase> LowLevelOpenCVStitcher::getBundleAdjuste
 
 double LowLevelOpenCVStitcher::getComposeScale(SourceImages &source_images)
 {
-    if (config.compose_megapix < 0) {
+    if (_config.compose_megapix < 0) {
         return 1.0;
     }
 
     return cv::min(
             1.0,
-            sqrt(config.compose_megapix * 1e6 / source_images.images[0].size().area()));
+            sqrt(_config.compose_megapix * 1e6 / source_images.images[0].size().area()));
 }
 
 cv::Ptr<cv::detail::Estimator> LowLevelOpenCVStitcher::getEstimator()
 {
     cv::Ptr<cv::detail::Estimator> estimator;
 
-    switch (config.estimator_type) {
+    switch (_config.estimator_type) {
     case EstimatorType::Affine:
         estimator = cv::makePtr<cv::detail::AffineBasedEstimator>();
         break;
@@ -460,7 +466,7 @@ cv::Ptr<cv::detail::ExposureCompensator> LowLevelOpenCVStitcher::getExposureComp
 {
     cv::Ptr<cv::detail::ExposureCompensator> compensator;
 
-    switch (config.exposure_compensator_type) {
+    switch (_config.exposure_compensator_type) {
     case ExposureCompensatorType::Channels:
         compensator = cv::detail::ExposureCompensator::createDefault(
                 cv::detail::ExposureCompensator::CHANNELS);
@@ -486,23 +492,23 @@ cv::Ptr<cv::detail::ExposureCompensator> LowLevelOpenCVStitcher::getExposureComp
     if (dynamic_cast<cv::detail::GainCompensator *>(compensator.get())) {
         cv::detail::GainCompensator *gain_compensator =
                 dynamic_cast<cv::detail::GainCompensator *>(compensator.get());
-        gain_compensator->setNrFeeds(config.exposure_compensation_nr_feeds);
+        gain_compensator->setNrFeeds(_config.exposure_compensation_nr_feeds);
     }
 
     if (dynamic_cast<cv::detail::ChannelsCompensator *>(compensator.get())) {
         cv::detail::ChannelsCompensator *channels_compensator =
                 dynamic_cast<cv::detail::ChannelsCompensator *>(compensator.get());
-        channels_compensator->setNrFeeds(config.exposure_compensation_nr_feeds);
+        channels_compensator->setNrFeeds(_config.exposure_compensation_nr_feeds);
     }
 
     if (dynamic_cast<cv::detail::BlocksCompensator *>(compensator.get())) {
         cv::detail::BlocksCompensator *blocks_compensator =
                 dynamic_cast<cv::detail::BlocksCompensator *>(compensator.get());
-        blocks_compensator->setNrFeeds(config.exposure_compensation_nr_feeds);
+        blocks_compensator->setNrFeeds(_config.exposure_compensation_nr_feeds);
         blocks_compensator->setNrGainsFilteringIterations(
-                config.exposure_compensation_nr_filtering);
-        blocks_compensator->setBlockSize(config.exposure_compensation_block_size,
-                                         config.exposure_compensation_block_size);
+                _config.exposure_compensation_nr_filtering);
+        blocks_compensator->setBlockSize(_config.exposure_compensation_block_size,
+                                         _config.exposure_compensation_block_size);
     }
 
     return compensator;
@@ -512,9 +518,9 @@ cv::Ptr<cv::Feature2D> LowLevelOpenCVStitcher::getFeaturesFinder()
 {
     cv::Ptr<cv::Feature2D> features_finder;
 
-    switch (config.features_finder_type) {
+    switch (_config.features_finder_type) {
     case FeaturesFinderType::Orb:
-        features_finder = cv::ORB::create(config.features_maximum);
+        features_finder = cv::ORB::create(_config.features_maximum);
         break;
     case FeaturesFinderType::Akaze:
         features_finder = cv::AKAZE::create();
@@ -534,18 +540,18 @@ cv::Ptr<cv::detail::FeaturesMatcher> LowLevelOpenCVStitcher::getFeaturesMatcher(
 {
     cv::Ptr<cv::detail::FeaturesMatcher> features_matcher;
 
-    switch (config.features_matcher_type) {
+    switch (_config.features_matcher_type) {
     case FeaturesMatcherType::Affine:
         features_matcher = cv::makePtr<cv::detail::AffineBestOf2NearestMatcher>(
-                false, config.try_cuda, config.match_conf);
+                false, _config.try_cuda, _config.match_conf);
         break;
     case FeaturesMatcherType::Homography:
-        if (config.range_width == -1) {
+        if (_config.range_width == -1) {
             features_matcher = cv::makePtr<cv::detail::BestOf2NearestMatcher>(
-                    config.try_cuda, config.match_conf);
+                    _config.try_cuda, _config.match_conf);
         } else {
             features_matcher = cv::makePtr<cv::detail::BestOf2NearestRangeMatcher>(
-                    config.range_width, config.try_cuda, config.match_conf);
+                    _config.range_width, _config.try_cuda, _config.match_conf);
         }
         break;
     }
@@ -557,7 +563,7 @@ cv::Ptr<cv::detail::SeamFinder> LowLevelOpenCVStitcher::getSeamFinder()
 {
     cv::Ptr<cv::detail::SeamFinder> seam_finder;
 
-    switch (config.seam_finder_type) {
+    switch (_config.seam_finder_type) {
     case SeamFinderType::DpColor:
         seam_finder =
                 cv::makePtr<cv::detail::DpSeamFinder>(cv::detail::DpSeamFinder::COLOR);
@@ -573,8 +579,8 @@ cv::Ptr<cv::detail::SeamFinder> LowLevelOpenCVStitcher::getSeamFinder()
     case SeamFinderType::GraphCutColorGrad: // TODO(bkd): optional GPU support
         seam_finder = cv::makePtr<cv::detail::GraphCutSeamFinder>(
                 cv::detail::GraphCutSeamFinder::COST_COLOR_GRAD,
-                config.seam_finder_graph_cut_terminal_cost,
-                config.seam_finder_graph_cut_bad_region_penalty);
+                _config.seam_finder_graph_cut_terminal_cost,
+                _config.seam_finder_graph_cut_bad_region_penalty);
         break;
     case SeamFinderType::Voronoi:
         seam_finder = cv::makePtr<cv::detail::VoronoiSeamFinder>();
@@ -589,12 +595,12 @@ cv::Ptr<cv::detail::SeamFinder> LowLevelOpenCVStitcher::getSeamFinder()
 
 double LowLevelOpenCVStitcher::getSeamScale(SourceImages &source_images)
 {
-    if (config.seam_megapix < 0) {
+    if (_config.seam_megapix < 0) {
         return 1.0;
     }
 
     return cv::min(
-            1.0, sqrt(config.seam_megapix * 1e6 / source_images.images[0].size().area()));
+            1.0, sqrt(_config.seam_megapix * 1e6 / source_images.images[0].size().area()));
 }
 
 cv::Ptr<cv::WarperCreator> LowLevelOpenCVStitcher::getWarperCreator()
@@ -602,7 +608,7 @@ cv::Ptr<cv::WarperCreator> LowLevelOpenCVStitcher::getWarperCreator()
     cv::Ptr<cv::WarperCreator> warper_creator;
 
     // TODO(bkd): optional GPU support
-    switch (config.warper_type) {
+    switch (_config.warper_type) {
     case WarperType::Affine:
         warper_creator = cv::makePtr<cv::AffineWarper>();
         break;
@@ -660,7 +666,7 @@ cv::detail::WaveCorrectKind LowLevelOpenCVStitcher::getWaveCorrect()
 {
     cv::detail::WaveCorrectKind wave_correct;
 
-    switch (config.wave_correct_type) {
+    switch (_config.wave_correct_type) {
     case WaveCorrectType::Horizontal:
         wave_correct = cv::detail::WAVE_CORRECT_HORIZ;
         break;
@@ -674,12 +680,12 @@ cv::detail::WaveCorrectKind LowLevelOpenCVStitcher::getWaveCorrect()
 
 double LowLevelOpenCVStitcher::getWorkScale(SourceImages &source_images)
 {
-    if (config.work_megapix < 0) {
+    if (_config.work_megapix < 0) {
         return 1.0;
     }
 
     return cv::min(
-            1.0, sqrt(config.work_megapix * 1e6 / source_images.images[0].size().area()));
+            1.0, sqrt(_config.work_megapix * 1e6 / source_images.images[0].size().area()));
 }
 
 std::vector<cv::detail::MatchesInfo>
@@ -698,16 +704,16 @@ cv::Ptr<cv::detail::Blender>
 LowLevelOpenCVStitcher::prepareBlender(WarpResults &warp_results)
 {
     cv::Ptr<cv::detail::Blender> blender =
-            cv::detail::Blender::createDefault(config.blender_type, config.try_cuda);
+            cv::detail::Blender::createDefault(_config.blender_type, _config.try_cuda);
     cv::Size destination_size =
             cv::detail::resultRoi(warp_results.corners, warp_results.sizes).size();
     float blend_width = cv::sqrt(static_cast<float>(destination_size.area()))
-            * config.blend_strength / 100.f;
+            * _config.blend_strength / 100.f;
 
     if (blend_width < 1.f) {
         blender = cv::detail::Blender::createDefault(cv::detail::Blender::NO,
-                                                     config.try_cuda);
-    } else if (config.blender_type == cv::detail::Blender::MULTI_BAND) {
+                                                     _config.try_cuda);
+    } else if (_config.blender_type == cv::detail::Blender::MULTI_BAND) {
         auto *multiband_blender =
                 dynamic_cast<cv::detail::MultiBandBlender *>(blender.get());
         multiband_blender->setNumBands(static_cast<int>(
@@ -716,7 +722,7 @@ LowLevelOpenCVStitcher::prepareBlender(WarpResults &warp_results)
         message << "Multi-band blender prepared with " << multiband_blender->numBands()
                 << " bands.";
         _logger->log(logging::Logger::Severity::info, message, "stitcher");
-    } else if (config.blender_type == cv::detail::Blender::FEATHER) {
+    } else if (_config.blender_type == cv::detail::Blender::FEATHER) {
         auto *feather_blender = dynamic_cast<cv::detail::FeatherBlender *>(blender.get());
         feather_blender->setSharpness(1.f / blend_width);
         std::stringstream message;
@@ -794,11 +800,11 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     auto features = findFeatures(source_images);
     debugFeatures(source_images, features);
     auto matches = matchFeatures(features);
-    debugMatches(source_images, features, matches, config.match_conf_thresh);
+    debugMatches(source_images, features, matches, _config.match_conf_thresh);
 
     // Filter images with poor matching.
     auto keep_indices = cv::detail::leaveBiggestComponent(
-            features, matches, static_cast<float>(config.match_conf_thresh));
+            features, matches, static_cast<float>(_config.match_conf_thresh));
     source_images.filter(keep_indices);
 
     // Estimate and refine camera parameters.
@@ -850,13 +856,12 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
 
 void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 {
-    boost::optional<Camera> camera_ = CameraModels().detect(_panorama.front());
-    if (!camera_.has_value()) {
+    if (!_camera.has_value()) {
         _logger->log(logging::Logger::Severity::info, "Camera model not identified.", "stitcher");
         return;
     }
 
-    Camera camera = camera_.get();
+    Camera camera = _camera.get();
     if (!camera.distortion_model) {
         _logger->log(logging::Logger::Severity::info, "Camera model doesn't have a distortion model.  Skipping undistortion.", "stitcher");
         return;
@@ -880,13 +885,12 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 
 void LowLevelOpenCVStitcher::undistortCropImages(SourceImages &source_images)
 {
-    boost::optional<Camera> camera_ = CameraModels().detect(_panorama.front());
-    if (!camera_.has_value()) {
+    if (!_camera.has_value()) {
         _logger->log(logging::Logger::Severity::info, "Camera model not identified.", "stitcher");
         return;
     }
 
-    Camera camera = camera_.get();
+    Camera camera = _camera.get();
     if (!camera.distortion_model) {
         _logger->log(logging::Logger::Severity::info, "Camera model doesn't have a distortion model.  Skipping undistortion.", "stitcher");
         return;
@@ -948,7 +952,7 @@ LowLevelOpenCVStitcher::warpImages(SourceImages &source_images,
 
 void LowLevelOpenCVStitcher::waveCorrect(std::vector<cv::detail::CameraParams> &cameras)
 {
-    if (!config.wave_correct) { return; }
+    if (!_config.wave_correct) { return; }
 
     std::vector<cv::Mat> rmats;
     for (auto camera : cameras) {

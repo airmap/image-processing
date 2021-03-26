@@ -1,6 +1,7 @@
 #pragma once
 
 #include "airmap/distortion.h"
+#include "airmap/stitcher_configuration.h"
 
 #include <boost/optional.hpp>
 #include <opencv2/core/utility.hpp>
@@ -21,6 +22,9 @@ namespace stitcher {
  */
 struct Camera
 {
+    using ConfigurationCb = std::function<const Configuration(
+        const Configuration &configuration, StitchType stitchType)>;
+
     enum class FOVUnits { Degrees, Radians };
 
     /**
@@ -67,13 +71,18 @@ struct Camera
            cv::Point2d _sensor_dimensions_pixels, cv::Point2d _principal_point,
            boost::optional<cv::Mat> _calibration_intrinsics =
                boost::optional<cv::Mat>(),
-           std::shared_ptr<DistortionModel> _distortion_model = nullptr)
+           std::shared_ptr<DistortionModel> _distortion_model = nullptr,
+           ConfigurationCb configurationCb = [](
+               const Configuration &configuration, StitchType stitchType) {
+                   return configuration;
+               })
         : calibration_intrinsics(_calibration_intrinsics)
         , distortion_model(std::move(_distortion_model))
         , focal_length_meters(_focal_length_meters)
         , principal_point(_principal_point)
         , sensor_dimensions_meters(_sensor_dimensions_meters)
         , sensor_dimensions_pixels(_sensor_dimensions_pixels)
+        , _configurationCb(configurationCb)
     {
     }
 
@@ -83,6 +92,21 @@ struct Camera
         , sensor_dimensions_meters(cv::Point2d(0, 0))
         , sensor_dimensions_pixels(cv::Point2d(0, 0))
     {
+    }
+
+    /**
+     * @brief configuration
+     * If the configuration callback is set, return the result of
+     * calling it with the provided configuration and stitch type.
+     */
+    const Configuration configuration(const Configuration &configuration,
+                                      StitchType stitchType) const
+    {
+        if (_configurationCb) {
+            return _configurationCb(configuration, stitchType);
+        }
+
+        return configuration;
     }
 
     /**
@@ -136,6 +160,9 @@ struct Camera
                 0, focal_length_pixels.y * scale, principal_point.y * scale,
                 0, 0, 1);
     }
+
+private:
+    ConfigurationCb _configurationCb;
 };
 
 } // namespace stitcher
