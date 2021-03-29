@@ -25,6 +25,9 @@ add_library(
     src/cropper.cpp
     src/distortion.cpp
     src/images.cpp
+    src/monitor/estimator.cpp
+    src/monitor/monitor.cpp
+    src/monitor/timer.cpp
     src/stitcher.cpp
     src/panorama.cpp
     3rdParty/TinyEXIF/TinyEXIF.cpp

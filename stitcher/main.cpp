@@ -29,6 +29,10 @@ int main(int argc, char *argv[])
             ("debug_path", boost::program_options::value<std::string>()->default_value("debug"),
                 "Path to the debug output.")
             ("disable_opencl", "If set, OpenCL will be disabled.")
+            ("elapsed_time", "Track elapsed times of the main stitch operations.  Always enabled if elapsed_time_log is.")
+            ("elapsed_time_log", "Log elapsed times of stitch operations.")
+            ("estimate", "Estimate time remaining during stitch.  Always enabled if elapsed_time or estimate_log are.")
+            ("estimate_log", "Log estimates of remaining time.  Always enabled if elapsed_time_log is.")
             ;
     try {
         boost::program_options::positional_options_description positional;
@@ -67,6 +71,10 @@ int main(int argc, char *argv[])
             vm["ram_budget"].as<size_t>(),
             vm.count("cubemap") > 0,
             vm.count("disable_opencl") <= 0,
+            vm.count("elapsed_time") > 0,
+            vm.count("elapsed_time_log") > 0,
+            vm.count("estimate") > 0,
+            vm.count("estimate_log") > 0,
             vm["retries"].as<size_t>()
         };
         RetryingStitcher{

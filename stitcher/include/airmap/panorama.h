@@ -200,6 +200,10 @@ public:
                 size_t _memoryBudgetMB,
                 bool _alsoCreateCubeMap = true,
                 bool _enableOpenCL = true,
+                bool _enableElapsedTime = false,
+                bool _enableElapsedTimeLog = false,
+                bool _enableEstimate = false,
+                bool _enableEstimateLog = false,
                 size_t _retries = 6,
                 double _maximumCropRatio = 99. / 100,
                 size_t _maxInputImageSize =
@@ -207,6 +211,10 @@ public:
                 )
             : memoryBudgetMB { _memoryBudgetMB }
             , alsoCreateCubeMap(_alsoCreateCubeMap)
+            , enableElapsedTime(_enableElapsedTime || _enableEstimate || _enableEstimateLog)
+            , enableElapsedTimeLog(_enableElapsedTimeLog)
+            , enableEstimate(_enableEstimate || _enableEstimateLog)
+            , enableEstimateLog(_enableEstimateLog)
             , enableOpenCL(_enableOpenCL)
             , retries(_retries)
             , maxInputImageSize { _maxInputImageSize }
@@ -236,6 +244,11 @@ public:
          *  Whether to also genarate cube maps.
          */
         bool alsoCreateCubeMap;
+
+        bool enableElapsedTime;
+        bool enableElapsedTimeLog;
+        bool enableEstimate;
+        bool enableEstimateLog;
 
         /**
          * @brief enableOpenCL

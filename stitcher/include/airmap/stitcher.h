@@ -3,8 +3,13 @@
 #include <sstream>
 #include <atomic>
 
-#include "airmap/panorama.h"
+#include <boost/optional.hpp>
+
+#include "airmap/camera.h"
+#include "airmap/camera_models.h"
 #include "airmap/logging.h"
+#include "airmap/monitor/monitor.h"
+#include "airmap/panorama.h"
 
 namespace airmap {
 namespace stitcher {
@@ -71,13 +76,52 @@ public:
 };
 
 /**
- * @brief The RetryingStitcher class is such that can retry the stitching based on
- * Parameters::retries
+ * @brief MonitoredStitcher
+ * A Stitcher with a monitor and estimator, which can track and estimate
+ * elapsed time of stitch operations.
  */
-class RetryingStitcher : public Stitcher
-{
+class MonitoredStitcher : public Stitcher {
 public:
-    RetryingStitcher(SharedPtr underlying,
+    using SharedPtr = std::shared_ptr<MonitoredStitcher>;
+
+    MonitoredStitcher(const Panorama &panorama,
+                      const Panorama::Parameters &parameters,
+                      std::shared_ptr<Logger> logger)
+        : _camera(CameraModels().detect(panorama.front()))
+        , _estimator(_camera, logger, parameters.enableEstimate,
+                     parameters.enableEstimateLog)
+        , _monitor(_estimator, logger, parameters.enableElapsedTime,
+                   parameters.enableEstimateLog)
+    {
+    }
+
+protected:
+    /**
+     * @brief _camera
+     * The detected camera.
+     */
+    const boost::optional<Camera> _camera;
+
+    /**
+     * @brief _estimator
+     * The stitcher estimator.  Manages operation elapsed time estimates.
+     */
+    monitor::Estimator _estimator;
+
+    /**
+     * @brief _monitor
+     * The stitcher monitor.  Manages operation elapsed time and estimates.
+     */
+    monitor::Monitor _monitor;
+};
+
+/**
+ * @brief The RetryingStitcher class is such that can retry the stitching based
+ * on Parameters::retries
+ */
+class RetryingStitcher : public Stitcher {
+public:
+    RetryingStitcher(MonitoredStitcher::SharedPtr underlying,
                      const Panorama::Parameters &parameters,
                      std::shared_ptr<logging::Logger> logger)
         : _underlying(underlying)
@@ -113,7 +157,6 @@ private:
     std::atomic<size_t> _retries;
     std::shared_ptr<logging::Logger> _logger;
 };
-
 
 } // namespace stitchar
 } // namespace airmap

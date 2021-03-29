@@ -15,7 +15,8 @@ OpenCVStitcher::OpenCVStitcher(const Panorama &panorama,
                                const std::string &outputPath,
                                std::shared_ptr<Logger> logger,
                                bool debug, path debugPath)
-    : _debug(debug)
+    : MonitoredStitcher(panorama, parameters, logger)
+    , _debug(debug)
     , _debugPath(debugPath)
     , _logger(logger)
     , _panorama(panorama)
@@ -132,18 +133,21 @@ void OpenCVStitcher::postprocess(cv::Mat &&result)
 
 //! stitcher::stitcher class
 
-LowLevelOpenCVStitcher::LowLevelOpenCVStitcher(const Configuration &config,
-                                               const Panorama &panorama,
-                                               const Panorama::Parameters &parameters,
-                                               const std::string &outputPath,
-                                               std::shared_ptr<logging::Logger> logger,
-                                               bool debug, path debugPath)
+LowLevelOpenCVStitcher::LowLevelOpenCVStitcher(
+    const Configuration &config, const Panorama &panorama,
+    const Panorama::Parameters &parameters, const std::string &outputPath,
+    std::shared_ptr<logging::Logger> logger, bool debug, path debugPath)
     : OpenCVStitcher(panorama, parameters, outputPath, logger, debug, debugPath)
-    , _camera(CameraModels().detect(panorama.front()))
-    , _config((_camera.has_value() ?
-        _camera.get().configuration(config, config.stitch_type) :
-        config)
-    )
+    // , _camera(CameraModels().detect(panorama.front()))
+    , _config((_camera.has_value()
+                   ? _camera.get().configuration(config, config.stitch_type)
+                   : config))
+    // , _estimator(_camera, logger, parameters.enableEstimate,
+                
+    //              parameters.enableEstimateLog)
+    // , _monitor(config, _estimator, logger, parameters.enableElapsedTime,
+              
+    //            parameters.enableElapsedTimeLog)
 {
 }
 
@@ -152,6 +156,8 @@ void LowLevelOpenCVStitcher::adjustCameraParameters(
         std::vector<cv::detail::MatchesInfo> &matches,
         std::vector<cv::detail::CameraParams> &cameras)
 {
+    _monitor.changeOperation(monitor::Operation::AdjustCameraParameters());
+
     _logger->log(logging::Logger::Severity::info, "Adjusting camera parameters.", "stitcher");
     auto bundle_adjuster = getBundleAdjuster();
     if (!(*bundle_adjuster)(features, matches, cameras)) {
@@ -168,6 +174,7 @@ void LowLevelOpenCVStitcher::compose(
         LowLevelOpenCVStitcher::WarpResults &warp_results, double work_scale,
         double compose_scale, float warped_image_scale, cv::Mat &result)
 {
+    _monitor.changeOperation(monitor::Operation::Compose());
     _logger->log(logging::Logger::Severity::info, "Composing stitched image.", "stitcher");
 
     // compute relative scales
@@ -241,6 +248,10 @@ void LowLevelOpenCVStitcher::compose(
         blender->feed(image_warped_s, mask_warped, warp_results.corners[i]);
         image_warped_s.release();
         mask_warped.release();
+
+        _monitor.updateCurrentOperation(
+            static_cast<double>(i) /
+            static_cast<double>(source_images.images_scaled.size()));
     }
 
     cv::Mat result_mask;
@@ -343,6 +354,8 @@ std::vector<cv::detail::CameraParams> LowLevelOpenCVStitcher::estimateCameraPara
         std::vector<cv::detail::ImageFeatures> &features,
         std::vector<cv::detail::MatchesInfo> &matches)
 {
+    _monitor.changeOperation(monitor::Operation::EstimateCameraParameters());
+
     _logger->log(logging::Logger::Severity::info, "Estimating camera parameters.", "stitcher");
     std::vector<cv::detail::CameraParams> cameras;
 
@@ -366,6 +379,8 @@ std::vector<cv::detail::CameraParams> LowLevelOpenCVStitcher::estimateCameraPara
 std::vector<cv::detail::ImageFeatures>
 LowLevelOpenCVStitcher::findFeatures(SourceImages &source_images)
 {
+    _monitor.changeOperation(monitor::Operation::FindFeatures());
+
     _logger->log(logging::Logger::Severity::info, "Finding features.", "stitcher");
     std::vector<cv::detail::ImageFeatures> features(source_images.images.size());
     cv::Ptr<cv::Feature2D> finder = getFeaturesFinder();
@@ -400,6 +415,8 @@ double LowLevelOpenCVStitcher::findMedianFocalLength(
 
 void LowLevelOpenCVStitcher::findSeams(LowLevelOpenCVStitcher::WarpResults &warp_results)
 {
+    _monitor.changeOperation(monitor::Operation::FindSeams());
+
     _logger->log(logging::Logger::Severity::info, "Finding seams.", "stitcher");
     auto seam_finder = getSeamFinder();
     seam_finder->find(warp_results.images_warped_f, warp_results.corners,
@@ -691,6 +708,8 @@ double LowLevelOpenCVStitcher::getWorkScale(SourceImages &source_images)
 std::vector<cv::detail::MatchesInfo>
 LowLevelOpenCVStitcher::matchFeatures(std::vector<cv::detail::ImageFeatures> &features)
 {
+    _monitor.changeOperation(monitor::Operation::MatchFeatures());
+
     _logger->log(logging::Logger::Severity::info, "Matching features.", "stitcher");
     std::vector<cv::detail::MatchesInfo> matches;
     cv::Ptr<cv::detail::FeaturesMatcher> matcher = getFeaturesMatcher();
@@ -739,6 +758,8 @@ cv::Ptr<cv::detail::ExposureCompensator>
 LowLevelOpenCVStitcher::prepareExposureCompensation(
         LowLevelOpenCVStitcher::WarpResults &warp_results)
 {
+    _monitor.changeOperation(monitor::Operation::PrepareExposureCompensation());
+
     _logger->log(logging::Logger::Severity::info, "Preparing exposure compensation.", "stitcher");
     auto compensator = getExposureCompensator();
     compensator->feed(warp_results.corners, warp_results.images_warped,
@@ -771,6 +792,8 @@ void LowLevelOpenCVStitcher::cancel() { }
 
 Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
 {
+    _monitor.changeOperation(monitor::Operation::Start());
+
     Stitcher::Report report;
     std::list<std::string> sourceImagePaths = _panorama.inputPaths();
 
@@ -851,11 +874,15 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     compose(source_images, cameras, exposure_compensator, warp_results,
             work_scale, compose_scale, warped_image_scale, result);
 
+    _monitor.changeOperation(monitor::Operation::Complete());
+
     return report;
 }
 
 void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 {
+    _monitor.changeOperation(monitor::Operation::UndistortImages());
+
     if (!_camera.has_value()) {
         _logger->log(logging::Logger::Severity::info, "Camera model not identified.", "stitcher");
         return;
@@ -872,7 +899,12 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
         _logger->log(logging::Logger::Severity::info, "Undistorting images.", "stitcher");
 
         cv::Mat K = camera.K();
-        camera.distortion_model->undistort(source_images.images, K);
+        for (size_t i = 0; i < source_images.images.size(); ++i) {
+            _monitor.updateCurrentOperation(
+                static_cast<double>(i) /
+                static_cast<double>(source_images.images.size()));
+            camera.distortion_model->undistort(source_images.images[i], K);
+        }
 
         if (_debug) {
             path undistorted_image_path = _debugPath / "undistorted";

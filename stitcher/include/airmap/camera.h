@@ -67,15 +67,16 @@ struct Camera
      * @brief Camera
      * Create a camera.
      */
-    Camera(double _focal_length_meters, cv::Point2d _sensor_dimensions_meters,
-           cv::Point2d _sensor_dimensions_pixels, cv::Point2d _principal_point,
-           boost::optional<cv::Mat> _calibration_intrinsics =
-               boost::optional<cv::Mat>(),
-           std::shared_ptr<DistortionModel> _distortion_model = nullptr,
-           ConfigurationCb configurationCb = [](
-               const Configuration &configuration, StitchType stitchType) {
-                   return configuration;
-               })
+    Camera(
+        double _focal_length_meters, cv::Point2d _sensor_dimensions_meters,
+        cv::Point2d _sensor_dimensions_pixels, cv::Point2d _principal_point,
+        boost::optional<cv::Mat> _calibration_intrinsics =
+            boost::optional<cv::Mat>(),
+        std::shared_ptr<DistortionModel> _distortion_model = nullptr,
+        ConfigurationCb configurationCb =
+            [](const Configuration &configuration, StitchType stitchType) {
+                return configuration;
+            })
         : calibration_intrinsics(_calibration_intrinsics)
         , distortion_model(std::move(_distortion_model))
         , focal_length_meters(_focal_length_meters)
