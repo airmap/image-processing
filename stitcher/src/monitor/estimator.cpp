@@ -53,25 +53,27 @@ const ElapsedTime Estimator::currentEstimate() const
         return estimate;
     }
 
-    const ElapsedTime estimate{std::accumulate(
-        std::begin(_operationEstimates), std::end(_operationEstimates),
-        ElapsedTime::fromSeconds(0),
-        [this](const ElapsedTime previous,
-               const std::pair<Operation::Enum, ElapsedTime> &current) {
-            if (static_cast<int>(current.first) >= _currentOperation.toInt()) {
-                // We might have a progress percent for the current operation.
-                // If so, return a fraction of the estimated time.
-                if (current.first == _currentOperation.value()) {
-                    ElapsedTime currentElapsedTime{
-                        std::chrono::duration_cast<ElapsedTime::DurationType>(
-                            current.second.get() -
-                            (current.second.get() *
-                             _currentOperationProgressPercent))};
-                    return previous + currentElapsedTime;
-                };
-                return previous + current.second;
-            }
-        })};
+    const ElapsedTime estimate { std::accumulate(
+            std::begin(_operationEstimates), std::end(_operationEstimates),
+            ElapsedTime::fromSeconds(0),
+            [this](const ElapsedTime previous,
+                   const std::pair<Operation::Enum, ElapsedTime> &current) {
+                if (static_cast<int>(current.first) >= _currentOperation.toInt()) {
+                    // We might have a progress percent for the current operation.
+                    // If so, return a fraction of the estimated time.
+                    if (current.first == _currentOperation.value()) {
+                        ElapsedTime currentElapsedTime {
+                            std::chrono::duration_cast<ElapsedTime::DurationType>(
+                                    current.second.get()
+                                    - (current.second.get()
+                                       * _currentOperationProgressPercent))
+                        };
+                        return previous + currentElapsedTime;
+                    };
+                    return previous + current.second;
+                }
+                return previous;
+            }) };
 
     return estimate;
 }

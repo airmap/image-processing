@@ -38,13 +38,13 @@ public:
 
     const DurationType get() const;
 
-    const int64_t hours() const;
+    int64_t hours() const;
 
-    const int64_t minutes() const;
+    int64_t minutes() const;
 
-    const int64_t seconds() const;
+    int64_t seconds() const;
 
-    const int64_t milliseconds() const;
+    int64_t milliseconds() const;
 
     const std::string str() const;
 

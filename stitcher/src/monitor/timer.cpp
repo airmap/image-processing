@@ -70,22 +70,22 @@ const ElapsedTime::DurationType ElapsedTime::get() const
     return _elapsedTime;
 }
 
-const int64_t ElapsedTime::hours() const
+int64_t ElapsedTime::hours() const
 {
     return std::chrono::duration_cast<Hours>(_elapsedTime).count();
 }
 
-const int64_t ElapsedTime::minutes() const
+int64_t ElapsedTime::minutes() const
 {
     return std::chrono::duration_cast<Minutes>(_elapsedTime).count() % 60;
 }
 
-const int64_t ElapsedTime::seconds() const
+int64_t ElapsedTime::seconds() const
 {
     return std::chrono::duration_cast<Seconds>(_elapsedTime).count() % 60;
 }
 
-const int64_t ElapsedTime::milliseconds() const
+int64_t ElapsedTime::milliseconds() const
 {
     return std::chrono::duration_cast<Milliseconds>(_elapsedTime).count() %
            1000;

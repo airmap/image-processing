@@ -98,12 +98,14 @@ public:
             return "Compose";
         case Enum::Complete:
             return "Complete";
+        default:
+            return "Start";
         }
     }
 
-    const int toInt() const { return static_cast<int>(_value); }
+    int toInt() const { return static_cast<int>(_value); }
 
-    const Enum value() const { return _value; }
+    Enum value() const { return _value; }
 
 private:
     Enum _value;

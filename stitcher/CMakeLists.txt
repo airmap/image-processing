@@ -28,8 +28,8 @@ add_library(
     src/monitor/estimator.cpp
     src/monitor/monitor.cpp
     src/monitor/timer.cpp
-    src/stitcher.cpp
     src/panorama.cpp
+    src/stitcher.cpp
     3rdParty/TinyEXIF/TinyEXIF.cpp
     3rdParty/TinyEXIF/tinyxml2.cpp
 )
