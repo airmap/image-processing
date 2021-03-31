@@ -103,7 +103,7 @@ struct CameraModels
             const Configuration &configuration, StitchType stitchType) {
                 Configuration updatedConfiguration = configuration;
                 if (stitchType == StitchType::ThreeSixty) {
-                    updatedConfiguration.match_conf = 0.45f;
+                    updatedConfiguration.match_conf = 0.35f;
                 }
                 return updatedConfiguration;
         };

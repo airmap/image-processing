@@ -21,15 +21,15 @@ namespace monitor {
  */
 class Monitor {
 public:
-    Monitor(Estimator &estimator, std::shared_ptr<Logger> logger,
-            bool enabled = false, bool logEnabled = false);
+    Monitor(Estimator &estimator, std::shared_ptr<Logger> logger, bool enabled = false,
+            bool logEnabled = false);
 
     /**
      * @brief changeOperation
      * Change the current operation.
      * @param operation The current operation.
      */
-    void changeOperation(Operation operation);
+    void changeOperation(const Operation &operation);
 
     /**
      * @brief currentOperation
@@ -52,6 +52,10 @@ private:
     bool _enabled;
     bool _logEnabled;
     Timer _timer;
+
+    void logComplete() const;
+
+    void logOperation(const Operation &operation) const;
 };
 
 } // namespace monitor

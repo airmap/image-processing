@@ -83,17 +83,21 @@ public:
 class MonitoredStitcher : public Stitcher {
 public:
     using SharedPtr = std::shared_ptr<MonitoredStitcher>;
+    using UpdatedCb = monitor::Estimator::UpdatedCb;
 
-    MonitoredStitcher(const Panorama &panorama,
-                      const Panorama::Parameters &parameters,
-                      std::shared_ptr<Logger> logger)
+    MonitoredStitcher(const Panorama &panorama, const Panorama::Parameters &parameters,
+                      std::shared_ptr<Logger> logger,
+                      UpdatedCb updatedCb = []() {})
         : _camera(CameraModels().detect(panorama.front()))
-        , _estimator(_camera, logger, parameters.enableEstimate,
-                     parameters.enableEstimateLog)
+        , _estimator(_camera, logger, updatedCb,
+                     parameters.enableEstimate, parameters.enableEstimateLog)
         , _monitor(_estimator, logger, parameters.enableElapsedTime,
                    parameters.enableEstimateLog)
     {
+        _estimator.setOperationTimesCb([this]() { return _monitor.operationTimes(); });
     }
+
+    monitor::Estimator &estimator() { return _estimator; }
 
 protected:
     /**
@@ -152,8 +156,8 @@ public:
         return _underlying->stitch();
     }
 
-private:
-    Stitcher::SharedPtr _underlying;
+protected:
+    MonitoredStitcher::SharedPtr _underlying;
     std::atomic<size_t> _retries;
     std::shared_ptr<logging::Logger> _logger;
 };

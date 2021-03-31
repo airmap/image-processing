@@ -26,6 +26,7 @@
 #include "airmap/gimbal.h"
 #include "airmap/images.h"
 #include "airmap/logging.h"
+#include "airmap/monitor/estimator.h"
 #include "airmap/stitcher.h"
 #include "airmap/stitcher_configuration.h"
 
@@ -38,11 +39,11 @@ namespace stitcher {
  */
 class OpenCVStitcher : public MonitoredStitcher {
 public:
-    OpenCVStitcher(const Panorama &panorama,
-                   const Panorama::Parameters &parameters,
-                   const std::string &outputPath,
-                   std::shared_ptr<Logger> logger,
-                   bool debug = false, path debugPath = path("debug"));
+    OpenCVStitcher(
+            const Panorama &panorama, const Panorama::Parameters &parameters,
+            const std::string &outputPath, std::shared_ptr<Logger> logger,
+            monitor::Estimator::UpdatedCb updatedCb = []() {}, bool debug = false,
+            path debugPath = path("debug"));
 
     Report stitch() override;
     void cancel() override;
@@ -111,12 +112,11 @@ public:
      * Create an instance of the stitcher with the given configuration.
      * @param config
      */
-    LowLevelOpenCVStitcher(const Configuration &config,
-            const Panorama &panorama,
-            const Panorama::Parameters &parameters,
-            const std::string &outputPath,
-            std::shared_ptr<Logger> logger, bool debug = false,
-            path debugPath = path("debug"));
+    LowLevelOpenCVStitcher(const Configuration &config, const Panorama &panorama,
+                           const Panorama::Parameters &parameters,
+                           const std::string &outputPath, std::shared_ptr<Logger> logger,
+                           monitor::Estimator::UpdatedCb updatedCb = []() {},
+                           bool debug = false, path debugPath = path("debug"));
 
     Report stitch() override;
     void cancel() override;

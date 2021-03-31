@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
                 parameters,
                 vm["output"].as<std::string>(),
                 logger,
+                []() {},
                 vm.count("debug") > 0,
                 debugPath
             ), parameters, logger

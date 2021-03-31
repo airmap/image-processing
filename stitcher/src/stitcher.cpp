@@ -14,8 +14,9 @@ OpenCVStitcher::OpenCVStitcher(const Panorama &panorama,
                                const Panorama::Parameters &parameters,
                                const std::string &outputPath,
                                std::shared_ptr<Logger> logger,
+                               monitor::Estimator::UpdatedCb updatedCb,
                                bool debug, path debugPath)
-    : MonitoredStitcher(panorama, parameters, logger)
+    : MonitoredStitcher(panorama, parameters, logger, updatedCb)
     , _debug(debug)
     , _debugPath(debugPath)
     , _logger(logger)
@@ -136,18 +137,12 @@ void OpenCVStitcher::postprocess(cv::Mat &&result)
 LowLevelOpenCVStitcher::LowLevelOpenCVStitcher(
     const Configuration &config, const Panorama &panorama,
     const Panorama::Parameters &parameters, const std::string &outputPath,
-    std::shared_ptr<logging::Logger> logger, bool debug, path debugPath)
-    : OpenCVStitcher(panorama, parameters, outputPath, logger, debug, debugPath)
-    // , _camera(CameraModels().detect(panorama.front()))
+    std::shared_ptr<logging::Logger> logger,
+    monitor::Estimator::UpdatedCb updatedCb, bool debug, path debugPath)
+    : OpenCVStitcher(panorama, parameters, outputPath, logger, updatedCb, debug, debugPath)
     , _config((_camera.has_value()
                    ? _camera.get().configuration(config, config.stitch_type)
                    : config))
-    // , _estimator(_camera, logger, parameters.enableEstimate,
-                
-    //              parameters.enableEstimateLog)
-    // , _monitor(config, _estimator, logger, parameters.enableElapsedTime,
-              
-    //            parameters.enableElapsedTimeLog)
 {
 }
 

@@ -32,6 +32,11 @@ public:
         return *this;
     }
 
+    bool operator==(const Operation &other) const
+    {
+        return _value == other.value();
+    }
+
     static constexpr int count = 10;
 
     static const Operation Start() { return {Enum::Start}; }

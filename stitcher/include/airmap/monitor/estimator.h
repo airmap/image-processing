@@ -18,9 +18,12 @@ namespace monitor {
  */
 class Estimator {
 public:
-    Estimator(const boost::optional<Camera> &camera,
-              const std::shared_ptr<Logger> logger, bool enabled = false,
-              bool logEnabled = false);
+    using OperationTimesCb = std::function<OperationTimes()>;
+    using UpdatedCb = std::function<void()>;
+
+    Estimator(
+            const boost::optional<Camera> &camera, const std::shared_ptr<Logger> logger,
+            UpdatedCb updatedCb = []() {}, bool enabled = false, bool logEnabled = false);
 
     static const std::string logPrefix;
 
@@ -33,6 +36,8 @@ public:
 
     void setCurrentEstimate(const std::string &estimatedTimeRemaining);
 
+    void setOperationTimesCb(const OperationTimesCb operationTimesCb);
+
     void updateCurrentOperation(double progressPercent);
 
 private:
@@ -44,8 +49,14 @@ private:
     bool _logEnabled;
     const std::shared_ptr<Logger> _logger;
     OperationEstimateTimes _operationEstimates;
+    OperationTimesCb _operationTimesCb;
+    UpdatedCb _updatedCb;
 
     void estimateOperations(const OperationTimes &operationTimes);
+
+    void log() const;
+
+    void updated() const;
 };
 
 } // namespace monitor

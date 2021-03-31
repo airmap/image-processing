@@ -28,6 +28,8 @@ public:
 
     const ElapsedTime operator+(const ElapsedTime &other) const;
 
+    const ElapsedTime operator*(const double &multiplier) const;
+
     static const ElapsedTime fromHours(const int64_t &hours);
 
     static const ElapsedTime fromMinutes(const int64_t &minutes);
@@ -40,11 +42,11 @@ public:
 
     int64_t hours() const;
 
-    int64_t minutes() const;
+    int64_t minutes(bool remainder = true) const;
 
-    int64_t seconds() const;
+    int64_t seconds(bool remainder = true) const;
 
-    int64_t milliseconds() const;
+    int64_t milliseconds(bool remainder = true) const;
 
     const std::string str() const;
 
