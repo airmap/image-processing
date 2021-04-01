@@ -175,12 +175,12 @@ const ElapsedTime Estimator::estimatedTimeRemaining() const
 
 const ElapsedTime Estimator::estimatedTimeTotal() const
 {
-    return { std::accumulate(std::begin(_operationEstimates),
-                             std::end(_operationEstimates), ElapsedTime::fromSeconds(0),
-                             [this](const ElapsedTime &previous,
-                                    const OperationElapsedTimesPair &current) {
-                                 return previous + current.second;
-                             }) };
+    return { std::accumulate(
+            std::begin(_operationEstimates), std::end(_operationEstimates),
+            ElapsedTime::fromSeconds(0),
+            [](const ElapsedTime &previous, const OperationElapsedTimesPair &current) {
+                return previous + current.second;
+            }) };
 }
 
 void Estimator::estimateOperations(const OperationElapsedTimesMap &operationTimes)
