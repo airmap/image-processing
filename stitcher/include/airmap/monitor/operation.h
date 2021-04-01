@@ -37,19 +37,29 @@ public:
         return _value == other.value();
     }
 
+    bool operator!=(const Operation &other) const { return !(*this == other); }
+
+    bool operator<(const Operation &other) const { return toInt() < other.toInt(); }
+
+    bool operator>(const Operation &other) const { return other < *this; }
+
+    bool operator<=(const Operation &other) const { return !(*this > other); }
+
+    bool operator>=(const Operation &other) const { return !(*this < other); }
+
     static constexpr int count = 10;
 
-    static const Operation Start() { return {Enum::Start}; }
+    static const Operation Start() { return { Enum::Start }; }
 
-    static const Operation UndistortImages() { return {Enum::UndistortImages}; }
+    static const Operation UndistortImages() { return { Enum::UndistortImages }; }
 
-    static const Operation FindFeatures() { return {Enum::FindFeatures}; }
+    static const Operation FindFeatures() { return { Enum::FindFeatures }; }
 
-    static const Operation MatchFeatures() { return {Enum::MatchFeatures}; }
+    static const Operation MatchFeatures() { return { Enum::MatchFeatures }; }
 
     static const Operation EstimateCameraParameters()
     {
-        return {Enum::EstimateCameraParameters};
+        return { Enum::EstimateCameraParameters };
     }
 
     static const Operation AdjustCameraParameters()
@@ -116,8 +126,10 @@ private:
     Enum _value;
 };
 
-using OperationTimes = std::map<Operation::Enum, const ElapsedTime>;
-using OperationEstimateTimes = std::map<Operation::Enum, const ElapsedTime>;
+using OperationDoubleMap = std::map<Operation::Enum, const double>;
+using OperationDoublePair = std::pair<Operation::Enum, const double>;
+using OperationElapsedTimesMap = std::map<Operation::Enum, const ElapsedTime>;
+using OperationElapsedTimesPair = std::pair<Operation::Enum, const ElapsedTime>;
 
 } // namespace monitor
 } // namespace stitcher

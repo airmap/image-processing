@@ -99,6 +99,8 @@ public:
 
     monitor::Estimator &estimator() { return _estimator; }
 
+    monitor::Monitor &monitor() { return _monitor; }
+
 protected:
     /**
      * @brief _camera

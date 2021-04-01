@@ -37,17 +37,25 @@ public:
      */
     Operation currentOperation();
 
+    void disable();
+
+    void disableLog();
+
+    void enable();
+
+    void enableLog();
+
     /**
      * @brief operationTimes
      * Returns a map of elapsed times for each operation.
      */
-    const OperationTimes operationTimes() const;
+    const OperationElapsedTimesMap operationTimes() const;
 
     void updateCurrentOperation(double progressPercent);
 
 private:
     Estimator &_estimator;
-    OperationTimes _operationTimes;
+    OperationElapsedTimesMap _operationTimes;
     std::shared_ptr<Logger> _logger;
     bool _enabled;
     bool _logEnabled;

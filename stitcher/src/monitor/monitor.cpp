@@ -41,6 +41,28 @@ Operation Monitor::currentOperation()
     return std::prev(_operationTimes.end())->first;
 }
 
+void Monitor::disable()
+{
+    _enabled = false;
+    _logEnabled = false;
+}
+
+void Monitor::disableLog()
+{
+    _logEnabled = false;
+}
+
+void Monitor::enable()
+{
+    _enabled = true;
+}
+
+void Monitor::enableLog()
+{
+    _enabled = true;
+    _logEnabled = true;
+}
+
 void Monitor::logComplete() const
 {
     if (!_logEnabled) {
@@ -72,7 +94,10 @@ void Monitor::logOperation(const Operation &operation) const
                  "stitcher");
 }
 
-const OperationTimes Monitor::operationTimes() const { return _operationTimes; }
+const OperationElapsedTimesMap Monitor::operationTimes() const
+{
+    return _operationTimes;
+}
 
 void Monitor::updateCurrentOperation(double progressPercent)
 {

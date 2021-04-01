@@ -10,7 +10,8 @@ Estimator::Estimator(const boost::optional<Camera> &camera,
     : _camera(camera)
     , _currentEstimate(0)
     , _currentOperation(Operation::Start())
-    , _currentOperationProgressPercent(0.)
+    , _currentOperationProgress(0.)
+    , _currentProgress(-1.)
     , _enabled(enabled || logEnabled)
     , _logEnabled(logEnabled)
     , _logger(logger)
@@ -18,16 +19,14 @@ Estimator::Estimator(const boost::optional<Camera> &camera,
 {
 }
 
-const std::string Estimator::logPrefix = "Estimated time remaining: ";
-
 void Estimator::changeOperation(const Operation &operation,
-                                const OperationTimes &operationTimes)
+                                const OperationElapsedTimesMap &operationTimes)
 {
     if (!_enabled) {
         return;
     }
 
-    _currentOperationProgressPercent = 0.;
+    _currentOperationProgress = 0.;
     _currentOperation = operation;
     estimateOperations(operationTimes);
     log();
@@ -36,29 +35,81 @@ void Estimator::changeOperation(const Operation &operation,
 
 const ElapsedTime Estimator::currentEstimate() const
 {
+    if (!_enabled) {
+        return ElapsedTime::fromSeconds(0);
+    }
+
     // If a parent process has set the estimate, return it directly.
-    // For example, AirBoss monitors logs of the child process
-    // for estimates and sets its wrapped stitcher's estimate.
+    // For example, AirBoss monitors stdout of the child (stitcher)
+    // process for estimates and sets its wrapped stitcher's estimate.
     if (_currentEstimate.get() > ElapsedTime::DurationType { 0 }) {
         return _currentEstimate;
     }
 
-    // No operations have completed.  Sum estimates for all operations.
+    // No operations have completed.
     if (_operationEstimates.begin() == _operationEstimates.end()) {
-        const ElapsedTime estimate { std::accumulate(
-                std::begin(_operationEstimates), std::end(_operationEstimates),
-                ElapsedTime::fromSeconds(0),
-                [](const ElapsedTime previous,
-                   const std::pair<Operation::Enum, ElapsedTime> &current) {
-                    return previous + current.second;
-                }) };
-        return estimate;
+        return estimatedTimeTotal();
     }
 
-    // Calculate the ratio of elapsed time to estimated time for each operation.
-    std::map<Operation::Enum, double> elapsedToEstimateRatios;
+    OperationDoubleMap _elapsedToEstimateRatios = elapsedToEstimateRatios();
+
+    return estimatedTimeRemaining() * elapsedToEstimateRatio();
+}
+
+double Estimator::currentProgress() const
+{
+    if (!_enabled) {
+        return 0.;
+    }
+
+    // If a parent process has set the progress, return it directly.
+    // For example, AirBoss monitors stdout of the child (stitcher)
+    // process for progress and sets its wrapped stitcher's progress.
+    if (_currentProgress > -1.) {
+        return _currentProgress;
+    }
+
+    // No operations have completed.
+    if (_operationEstimates.begin() == _operationEstimates.end()) {
+        return 0.;
+    }
+
+    return 1. - estimatedTimeRemaining() / estimatedTimeTotal();
+}
+
+void Estimator::disable()
+{
+    _enabled = false;
+    _logEnabled = false;
+}
+
+void Estimator::disableLog()
+{
+    _logEnabled = false;
+}
+
+double Estimator::elapsedToEstimateRatio() const
+{
+    OperationDoubleMap _elapsedToEstimateRatios = elapsedToEstimateRatios();
+    double _elapsedToEstimateRatio { std::accumulate(
+            std::begin(_elapsedToEstimateRatios), std::end(_elapsedToEstimateRatios), 0.,
+            [this](const double &previous, const OperationDoublePair &current) {
+                if (Operation { current.first } < _currentOperation) {
+                    return previous + current.second;
+                }
+                return previous;
+            }) };
+    _elapsedToEstimateRatio = _elapsedToEstimateRatio / _elapsedToEstimateRatios.size();
+    _elapsedToEstimateRatio =
+            _elapsedToEstimateRatio > 0. ? _elapsedToEstimateRatio : 1.0;
+    return _elapsedToEstimateRatio;
+}
+
+const OperationDoubleMap Estimator::elapsedToEstimateRatios() const
+{
+    OperationDoubleMap _elapsedToEstimateRatios;
     if (_operationTimesCb) {
-        OperationTimes operationTimes = _operationTimesCb();
+        OperationElapsedTimesMap operationTimes = _operationTimesCb();
 
         for (auto &operationTime : operationTimes) {
             ElapsedTime estimate = _operationEstimates.find(operationTime.first)
@@ -74,59 +125,65 @@ const ElapsedTime Estimator::currentEstimate() const
                     : 1.;
             elapsedToEstimateRatio =
                     elapsedToEstimateRatio > 0 ? elapsedToEstimateRatio : 1.;
-            elapsedToEstimateRatios.insert(
+            _elapsedToEstimateRatios.insert(
                     std::make_pair(operationTime.first, elapsedToEstimateRatio));
         }
     } else {
         for (auto &operationEstimate : _operationEstimates) {
-            elapsedToEstimateRatios.insert(std::make_pair(operationEstimate.first, 1.0));
+            _elapsedToEstimateRatios.insert(std::make_pair(operationEstimate.first, 1.0));
         }
     }
 
-    // Sum and average the ratios.
-    double elapsedToEstimateRatio { std::accumulate(
-            std::begin(elapsedToEstimateRatios), std::end(elapsedToEstimateRatios), 0.,
-            [this](const double previous,
-                   const std::pair<Operation::Enum, double> &current) {
-                if (static_cast<int>(current.first) < _currentOperation.toInt()) {
-                    return previous + current.second;
-                }
-                return previous;
-            }) };
-    elapsedToEstimateRatio = elapsedToEstimateRatio / elapsedToEstimateRatios.size();
-    elapsedToEstimateRatio = elapsedToEstimateRatio > 0. ? elapsedToEstimateRatio : 1.0;
-
-    // Sum all remaining estimates and multiply by the elasped to estimate ratio.
-    const ElapsedTime estimate {
-        std::accumulate(
-                std::begin(_operationEstimates), std::end(_operationEstimates),
-                ElapsedTime::fromSeconds(0),
-                [this](const ElapsedTime previous,
-                       const std::pair<Operation::Enum, ElapsedTime> &current) {
-                    if (static_cast<int>(current.first) >= _currentOperation.toInt()) {
-                        // We might have a progress percent for the current operation.
-                        // If so, return a fraction of the estimated time.
-                        if (current.first == _currentOperation.value()) {
-                            ElapsedTime currentElapsedTime {
-                                std::chrono::duration_cast<ElapsedTime::DurationType>(
-                                        current.second.get()
-                                        - (current.second.get()
-                                           * _currentOperationProgressPercent))
-                                        .count()
-                            };
-                            return previous + currentElapsedTime;
-                        };
-                        return previous + current.second;
-                    }
-                    return previous;
-                })
-        * elapsedToEstimateRatio
-    };
-
-    return estimate;
+    return _elapsedToEstimateRatios;
 }
 
-void Estimator::estimateOperations(const OperationTimes &operationTimes)
+void Estimator::enable()
+{
+    _enabled = true;
+}
+
+void Estimator::enableLog()
+{
+    _enabled = true;
+    _logEnabled = true;
+}
+
+const std::string Estimator::estimateLogPrefix = "Estimated time remaining: ";
+
+const std::string Estimator::progressLogPrefix = "Progress: ";
+
+const ElapsedTime Estimator::estimatedTimeRemaining() const
+{
+    return std::accumulate(std::begin(_operationEstimates), std::end(_operationEstimates),
+                           ElapsedTime::fromSeconds(0),
+                           [this](const ElapsedTime &previous,
+                                  const OperationElapsedTimesPair &current) {
+                               if (Operation { current.first } >= _currentOperation) {
+                                   // We might have a progress percent for the current
+                                   // operation. If so, return a fraction of the estimated
+                                   // time.
+                                   if (Operation { current.first } == _currentOperation) {
+                                       return previous + current.second
+                                               - (current.second
+                                                  * _currentOperationProgress);
+                                   };
+                                   return previous + current.second;
+                               }
+                               return previous;
+                           });
+}
+
+const ElapsedTime Estimator::estimatedTimeTotal() const
+{
+    return { std::accumulate(std::begin(_operationEstimates),
+                             std::end(_operationEstimates), ElapsedTime::fromSeconds(0),
+                             [this](const ElapsedTime &previous,
+                                    const OperationElapsedTimesPair &current) {
+                                 return previous + current.second;
+                             }) };
+}
+
+void Estimator::estimateOperations(const OperationElapsedTimesMap &operationTimes)
 {
     if (!_enabled) {
         return;
@@ -139,24 +196,33 @@ void Estimator::estimateOperations(const OperationTimes &operationTimes)
             PinholeDistortionModel *pinholeDistortionModel =
                     dynamic_cast<PinholeDistortionModel *>(camera.distortion_model.get());
             if (pinholeDistortionModel) {
-                _operationEstimates = {
-                    { Operation::Start().value(), ElapsedTime::fromMilliseconds(2500) },
-                    { Operation::UndistortImages().value(),
-                      ElapsedTime::fromMilliseconds(400) },
-                    { Operation::FindFeatures().value(),
-                      ElapsedTime::fromMilliseconds(500) },
-                    { Operation::MatchFeatures().value(),
-                      ElapsedTime::fromMilliseconds(1500) },
-                    { Operation::EstimateCameraParameters().value(),
-                      ElapsedTime::fromSeconds(0) },
-                    { Operation::AdjustCameraParameters().value(),
-                      ElapsedTime::fromSeconds(3) },
-                    { Operation::PrepareExposureCompensation().value(),
-                      ElapsedTime::fromMilliseconds(2500) },
-                    { Operation::FindSeams().value(), ElapsedTime::fromSeconds(70) },
-                    { Operation::Compose().value(), ElapsedTime::fromSeconds(100) },
-                    { Operation::Complete().value(), ElapsedTime::fromSeconds(10) }
-                };
+                _operationEstimates.clear();
+                _operationEstimates.insert(std::make_pair(
+                        Operation::Start().value(), ElapsedTime::fromMilliseconds(2500)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::UndistortImages().value(),
+                                       ElapsedTime::fromMilliseconds(400)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::FindFeatures().value(),
+                                       ElapsedTime::fromMilliseconds(500)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::MatchFeatures().value(),
+                                       ElapsedTime::fromMilliseconds(1500)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::EstimateCameraParameters().value(),
+                                       ElapsedTime::fromSeconds(0)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::AdjustCameraParameters().value(),
+                                       ElapsedTime::fromSeconds(3)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::PrepareExposureCompensation().value(),
+                                       ElapsedTime::fromMilliseconds(2500)));
+                _operationEstimates.insert(std::make_pair(Operation::FindSeams().value(),
+                                                          ElapsedTime::fromSeconds(70)));
+                _operationEstimates.insert(std::make_pair(Operation::Compose().value(),
+                                                          ElapsedTime::fromSeconds(100)));
+                _operationEstimates.insert(std::make_pair(Operation::Complete().value(),
+                                                          ElapsedTime::fromSeconds(10)));
                 return;
             }
 
@@ -164,60 +230,97 @@ void Estimator::estimateOperations(const OperationTimes &operationTimes)
                     dynamic_cast<ScaramuzzaDistortionModel *>(
                             camera.distortion_model.get());
             if (scaramuzzaDistortionModel) {
-                _operationEstimates = {
-                    { Operation::Start().value(), ElapsedTime::fromMilliseconds(1500) },
-                    { Operation::UndistortImages().value(),
-                      ElapsedTime::fromSeconds(30) },
-                    { Operation::FindFeatures().value(), ElapsedTime::fromSeconds(0) },
-                    { Operation::MatchFeatures().value(), ElapsedTime::fromSeconds(0) },
-                    { Operation::EstimateCameraParameters().value(),
-                      ElapsedTime::fromSeconds(0) },
-                    { Operation::AdjustCameraParameters().value(),
-                      ElapsedTime::fromSeconds(30) },
-                    { Operation::PrepareExposureCompensation().value(),
-                      ElapsedTime::fromSeconds(10) },
-                    { Operation::FindSeams().value(), ElapsedTime::fromSeconds(100) },
-                    { Operation::Compose().value(), ElapsedTime::fromSeconds(100) },
-                    { Operation::Complete().value(), ElapsedTime::fromSeconds(10) }
-                };
+                _operationEstimates.clear();
+                _operationEstimates.insert(std::make_pair(
+                        Operation::Start().value(), ElapsedTime::fromMilliseconds(1500)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::UndistortImages().value(),
+                                       ElapsedTime::fromSeconds(30)));
+                _operationEstimates.insert(std::make_pair(
+                        Operation::FindFeatures().value(), ElapsedTime::fromSeconds(0)));
+                _operationEstimates.insert(std::make_pair(
+                        Operation::MatchFeatures().value(), ElapsedTime::fromSeconds(0)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::EstimateCameraParameters().value(),
+                                       ElapsedTime::fromSeconds(0)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::AdjustCameraParameters().value(),
+                                       ElapsedTime::fromSeconds(30)));
+                _operationEstimates.insert(
+                        std::make_pair(Operation::PrepareExposureCompensation().value(),
+                                       ElapsedTime::fromSeconds(10)));
+                _operationEstimates.insert(std::make_pair(Operation::FindSeams().value(),
+                                                          ElapsedTime::fromSeconds(100)));
+                _operationEstimates.insert(std::make_pair(Operation::Compose().value(),
+                                                          ElapsedTime::fromSeconds(100)));
+                _operationEstimates.insert(std::make_pair(Operation::Complete().value(),
+                                                          ElapsedTime::fromSeconds(10)));
                 return;
             }
         }
     }
 
-    _operationEstimates = {
-        { Operation::Start().value(), ElapsedTime::fromMilliseconds(1500) },
-        { Operation::UndistortImages().value(), ElapsedTime::fromMilliseconds(400) },
-        { Operation::FindFeatures().value(), ElapsedTime::fromSeconds(0) },
-        { Operation::MatchFeatures().value(), ElapsedTime::fromMilliseconds(500) },
-        { Operation::EstimateCameraParameters().value(), ElapsedTime::fromSeconds(0) },
-        { Operation::AdjustCameraParameters().value(), ElapsedTime::fromSeconds(3) },
-        { Operation::PrepareExposureCompensation().value(),
-          ElapsedTime::fromMilliseconds(2500) },
-        { Operation::FindSeams().value(), ElapsedTime::fromSeconds(70) },
-        { Operation::Compose().value(), ElapsedTime::fromSeconds(100) },
-        { Operation::Complete().value(), ElapsedTime::fromSeconds(10) }
-    };
+    _operationEstimates.clear();
+    _operationEstimates.insert(std::make_pair(Operation::Start().value(),
+                                              ElapsedTime::fromMilliseconds(1500)));
+    _operationEstimates.insert(std::make_pair(Operation::UndistortImages().value(),
+                                              ElapsedTime::fromMilliseconds(400)));
+    _operationEstimates.insert(std::make_pair(Operation::FindFeatures().value(),
+                                              ElapsedTime::fromSeconds(0)));
+    _operationEstimates.insert(std::make_pair(Operation::MatchFeatures().value(),
+                                              ElapsedTime::fromMilliseconds(500)));
+    _operationEstimates.insert(std::make_pair(
+            Operation::EstimateCameraParameters().value(), ElapsedTime::fromSeconds(0)));
+    _operationEstimates.insert(std::make_pair(Operation::AdjustCameraParameters().value(),
+                                              ElapsedTime::fromSeconds(3)));
+    _operationEstimates.insert(
+            std::make_pair(Operation::PrepareExposureCompensation().value(),
+                           ElapsedTime::fromMilliseconds(2500)));
+    _operationEstimates.insert(
+            std::make_pair(Operation::FindSeams().value(), ElapsedTime::fromSeconds(70)));
+    _operationEstimates.insert(
+            std::make_pair(Operation::Compose().value(), ElapsedTime::fromSeconds(100)));
+    _operationEstimates.insert(
+            std::make_pair(Operation::Complete().value(), ElapsedTime::fromSeconds(10)));
     return;
 }
 
 void Estimator::log() const
 {
-    if (_logEnabled) {
-        _logger->log(Logger::Severity::info,
-                     (logPrefix + currentEstimate().str()).c_str(), "stitcher");
+    if (!_enabled || !_logEnabled) {
+        return;
     }
+
+    _logger->log(Logger::Severity::info,
+                 (estimateLogPrefix + currentEstimate().str()).c_str(), "stitcher");
+
+    _logger->log(Logger::Severity::info,
+                 (progressLogPrefix + std::to_string(currentProgress() * 100.)).c_str(),
+                 "stitcher");
 }
 
-const OperationEstimateTimes Estimator::operationEstimateTimes() const
+const OperationElapsedTimesMap Estimator::operationEstimateTimes() const
 {
     return _operationEstimates;
 }
 
 void Estimator::setCurrentEstimate(const std::string &estimatedTimeRemaining)
 {
+    if (!_enabled) {
+        return;
+    }
+
     _currentEstimate = { estimatedTimeRemaining };
     updated();
+}
+
+void Estimator::setCurrentProgress(const std::string &progress)
+{
+    if (!_enabled) {
+        return;
+    }
+
+    _currentProgress = std::stod(progress);
 }
 
 void Estimator::setOperationTimesCb(const OperationTimesCb operationTimesCb)
@@ -225,15 +328,23 @@ void Estimator::setOperationTimesCb(const OperationTimesCb operationTimesCb)
     _operationTimesCb = operationTimesCb;
 }
 
-void Estimator::updateCurrentOperation(double progressPercent)
+void Estimator::updateCurrentOperation(double progress)
 {
-    _currentOperationProgressPercent = progressPercent;
+    if (!_enabled) {
+        return;
+    }
+
+    _currentOperationProgress = progress;
     log();
     updated();
 }
 
 void Estimator::updated() const
 {
+    if (!_enabled) {
+        return;
+    }
+
     _updatedCb();
 }
 

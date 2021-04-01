@@ -44,9 +44,28 @@ const ElapsedTime ElapsedTime::operator+(const ElapsedTime &other) const
     return { get() + other.get() };
 }
 
+const ElapsedTime ElapsedTime::operator-(const ElapsedTime &other) const
+{
+    return { get() - other.get() };
+    // _elapsedTime = other.get();
+    // return *this;
+}
+
 const ElapsedTime ElapsedTime::operator*(const double &multiplier) const
 {
-    return { static_cast<int64_t>(static_cast<double>(get().count()) * multiplier) };
+    return { static_cast<int64_t>(static_cast<double>(milliseconds(false))
+                                  * multiplier) };
+}
+
+double ElapsedTime::operator/(const ElapsedTime &other) const
+{
+    return static_cast<double>(milliseconds(false))
+            / static_cast<double>(other.milliseconds(false));
+}
+
+const ElapsedTime ElapsedTime::operator/(const double &divisor) const
+{
+    return { static_cast<int64_t>(static_cast<double>(milliseconds(false) / divisor)) };
 }
 
 const ElapsedTime ElapsedTime::fromHours(const int64_t &hours)
@@ -79,33 +98,34 @@ int64_t ElapsedTime::hours() const
     return std::chrono::duration_cast<Hours>(_elapsedTime).count();
 }
 
-int64_t ElapsedTime::minutes(bool remainder) const
+int64_t ElapsedTime::minutes(bool remainderOnly) const
 {
-    return remainder ? std::chrono::duration_cast<Minutes>(_elapsedTime).count() % 60
-                     : std::chrono::duration_cast<Minutes>(_elapsedTime).count();
+    return remainderOnly ? std::chrono::duration_cast<Minutes>(_elapsedTime).count() % 60
+                         : std::chrono::duration_cast<Minutes>(_elapsedTime).count();
 }
 
-int64_t ElapsedTime::seconds(bool remainder) const
+int64_t ElapsedTime::seconds(bool remainderOnly) const
 {
-    return remainder ? std::chrono::duration_cast<Seconds>(_elapsedTime).count() % 60
-                     : std::chrono::duration_cast<Seconds>(_elapsedTime).count();
+    return remainderOnly ? std::chrono::duration_cast<Seconds>(_elapsedTime).count() % 60
+                         : std::chrono::duration_cast<Seconds>(_elapsedTime).count();
 }
 
-int64_t ElapsedTime::milliseconds(bool remainder) const
+int64_t ElapsedTime::milliseconds(bool remainderOnly) const
 {
-    return remainder
+    return remainderOnly
             ? std::chrono::duration_cast<Milliseconds>(_elapsedTime).count() % 1000
             : std::chrono::duration_cast<Milliseconds>(_elapsedTime).count();
 }
 
-const std::string ElapsedTime::str() const
+const std::string ElapsedTime::str(bool includeMilliseconds) const
 {
-    const char *format = "%02d:%02d:%02d.%02d";
-    auto size = std::snprintf(nullptr, 0, format, hours(), minutes(), seconds(),
+    std::string format = "%02d:%02d:%02d.%03d";
+    auto size = std::snprintf(nullptr, 0, format.c_str(), hours(), minutes(), seconds(),
                               milliseconds());
     std::string message(size + 1, '\0');
-    std::sprintf(&message[0], format, hours(), minutes(), seconds(), milliseconds());
-    return message;
+    std::sprintf(&message[0], format.c_str(), hours(), minutes(), seconds(),
+                 milliseconds());
+    return includeMilliseconds ? message : message.substr(0, message.length() - 3);
 }
 
 std::ostream &operator<<(std::ostream &os, const ElapsedTime &elapsedTime)
@@ -140,7 +160,7 @@ void Timer::stop()
 
 std::ostream &operator<<(std::ostream &os, const Timer &timer)
 {
-    return os << timer;
+    return os << timer.str();
 }
 
 } // namespace monitor
