@@ -50,9 +50,6 @@ const ElapsedTime Estimator::currentEstimate() const
         return estimatedTimeTotal();
     }
 
-    OperationDoubleMap _elapsedToEstimateRatios = elapsedToEstimateRatios();
-    std::cout << "ratio: " << elapsedToEstimateRatio() << std::endl;
-
     return estimatedTimeRemaining() * elapsedToEstimateRatio();
 }
 
@@ -323,6 +320,7 @@ void Estimator::setCurrentProgress(const std::string &progress)
     }
 
     _currentProgress = std::stod(progress);
+    updated();
 }
 
 void Estimator::setOperationTimesCb(const OperationTimesCb operationTimesCb)

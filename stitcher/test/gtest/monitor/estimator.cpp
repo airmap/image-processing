@@ -15,10 +15,7 @@ using airmap::stitcher::CameraModels;
 using airmap::stitcher::monitor::ElapsedTime;
 using airmap::stitcher::monitor::Estimator;
 using airmap::stitcher::monitor::Operation;
-using airmap::stitcher::monitor::OperationDoubleMap;
-using airmap::stitcher::monitor::OperationDoublePair;
 using airmap::stitcher::monitor::OperationElapsedTimesMap;
-using airmap::stitcher::monitor::OperationElapsedTimesPair;
 
 class EstimatorTest : public ::testing::Test {
 protected:
@@ -29,16 +26,29 @@ protected:
     {
     }
 
-    OperationElapsedTimesMap anafiOperationEstimates()
+    const OperationElapsedTimesMap anafiOperationEstimates()
     {
         Estimator estimator = estimatorAnafi();
         estimator.enable();
         return estimator.estimateOperations();
     }
 
-    Estimator estimatorAnafi() { return {cameraAnafi, logger}; }
+    const OperationElapsedTimesMap vesperOperationEstimates()
+    {
+        Estimator estimator = estimatorVesper();
+        estimator.enable();
+        return estimator.estimateOperations();
+    }
 
-    Estimator estimatorVesper() { return {cameraVesper, logger}; }
+    Estimator estimatorAnafi(Estimator::UpdatedCb updatedCb = []() {})
+    {
+        return {cameraAnafi, logger, updatedCb};
+    }
+
+    Estimator estimatorVesper(Estimator::UpdatedCb updatedCb = []() {})
+    {
+        return {cameraVesper, logger, updatedCb};
+    }
 
     OperationElapsedTimesMap
     getOperationTimes(const OperationElapsedTimesMap &operationEstimates,
@@ -220,6 +230,7 @@ TEST_F(EstimatorTest, estimatedTimeRemaining)
               estimator.estimatedTimeTotal());
 
     estimator.changeOperation(Operation::UndistortImages());
+    EXPECT_EQ(estimator.currentEstimate(), estimator.estimatedTimeRemaining());
     EXPECT_NE(estimator.estimatedTimeRemaining(),
               estimator.estimatedTimeTotal());
     EXPECT_EQ(estimator.estimatedTimeRemaining(),
@@ -235,10 +246,127 @@ TEST_F(EstimatorTest, estimatedTimeRemaining)
                   static_cast<Operation::Enum>(operationEstimates.size() - 1)));
 }
 
-// TODO(bkd):
-// - current progress
-// - current operation progress (updateCurrentOperation)
-// - current operation estimate
-// - updated callback
-// - setCurrentEstimate
-// - setCurrentProgress
+TEST_F(EstimatorTest, operationProgress)
+{
+    Estimator estimator = estimatorVesper();
+    estimator.enable();
+
+    estimator.changeOperation(Operation::Start());
+    EXPECT_EQ(estimator.currentEstimate(), estimator.estimatedTimeRemaining());
+    EXPECT_EQ(estimator.currentEstimate(), estimator.estimatedTimeTotal());
+
+    estimator.changeOperation(Operation::UndistortImages());
+    EXPECT_EQ(estimator.currentEstimate(), estimator.estimatedTimeRemaining());
+
+    const ElapsedTime undistortEstimate =
+        vesperOperationEstimates().at(Operation::UndistortImages().value());
+    const ElapsedTime startingEstimatedTimeRemaining =
+        estimator.estimatedTimeRemaining();
+
+    for (int i = 0; i < 50; i++) {
+        double operationProgress = static_cast<double>(i) / 50.;
+        estimator.updateCurrentOperation(operationProgress);
+        EXPECT_EQ(estimator.currentEstimate(),
+                  estimator.estimatedTimeRemaining());
+        EXPECT_EQ(estimator.currentEstimate(),
+                  startingEstimatedTimeRemaining -
+                      undistortEstimate * operationProgress);
+    }
+}
+
+TEST_F(EstimatorTest, currentProgress)
+{
+    Estimator estimator = estimatorVesper();
+    estimator.enable();
+
+    const OperationElapsedTimesMap operationEstimates =
+        vesperOperationEstimates();
+
+    estimator.changeOperation(Operation::Start());
+    const ElapsedTime estimatedTimeTotal = estimator.estimatedTimeTotal();
+    estimator.changeOperation(Operation::UndistortImages());
+
+    const ElapsedTime startingTimeRemaining =
+        estimator.estimatedTimeRemaining();
+    double startingProgress = 1 - startingTimeRemaining / estimatedTimeTotal;
+    EXPECT_EQ(estimator.currentProgress(), startingProgress);
+
+    const ElapsedTime undistortEstimate =
+        vesperOperationEstimates().at(Operation::UndistortImages().value());
+    const ElapsedTime estimatedTimeRemaining =
+        estimator.estimatedTimeRemaining();
+    const double undistortOperationPercent =
+        undistortEstimate / estimatedTimeTotal;
+
+    for (int i = 0; i < 50; i++) {
+        double operationProgress = static_cast<double>(i) / 50.;
+        estimator.updateCurrentOperation(operationProgress);
+        EXPECT_EQ(estimator.currentProgress(),
+                  1. - estimator.estimatedTimeRemaining() /
+                           estimator.estimatedTimeTotal());
+
+        EXPECT_LT(estimator.currentProgress() -
+                      (startingProgress +
+                       operationProgress * undistortOperationPercent),
+                  0.00001);
+    }
+}
+
+TEST_F(EstimatorTest, disable)
+{
+    Estimator estimator = estimatorAnafi();
+    estimator.enable();
+
+    estimator.changeOperation(Operation::Start());
+    const ElapsedTime startingEtimatedTimeRemaining =
+        estimator.estimatedTimeRemaining();
+
+    estimator.disable();
+    for (int i = 1; i < estimator.estimateOperations().size(); i++) {
+        Operation operation{static_cast<Operation::Enum>(i)};
+        estimator.changeOperation(operation);
+        EXPECT_EQ(estimator.currentEstimate(), startingEtimatedTimeRemaining);
+        EXPECT_EQ(estimator.estimatedTimeRemaining(),
+                  startingEtimatedTimeRemaining);
+    }
+}
+
+TEST_F(EstimatorTest, setCurrentEstimate)
+{
+    Estimator estimator = estimatorVesper();
+    estimator.enable();
+
+    for (int i = 50; i >= 0; i--) {
+        ElapsedTime estimate = ElapsedTime::fromSeconds(i);
+        estimator.setCurrentEstimate(estimate.str());
+        EXPECT_EQ(estimator.currentEstimate(), estimate);
+    }
+}
+
+TEST_F(EstimatorTest, setCurrentProgress)
+{
+    Estimator estimator = estimatorVesper();
+    estimator.enable();
+
+    for (int i = 50; i >= 0; i--) {
+        double progress = static_cast<double>(i) / 50.;
+        estimator.setCurrentProgress(std::to_string(progress));
+        EXPECT_EQ(estimator.currentProgress(), progress);
+    }
+}
+
+TEST_F(EstimatorTest, updatedCallback)
+{
+    int calledCount = 0;
+    Estimator estimator = estimatorVesper([&calledCount]() { calledCount++; });
+    estimator.enable();
+
+    estimator.changeOperation(Operation::Start());
+    EXPECT_EQ(calledCount, 1);
+
+    estimator.setCurrentEstimate("01:02:03.004");
+    EXPECT_EQ(calledCount, 2);
+
+    estimator.setCurrentProgress("45.32");
+    EXPECT_EQ(calledCount, 3);
+}
