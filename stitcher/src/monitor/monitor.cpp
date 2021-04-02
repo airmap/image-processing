@@ -27,7 +27,7 @@ void Monitor::changeOperation(const Operation &operation)
         logOperation(operation);
     }
 
-    _estimator.changeOperation(operation, _operationTimes);
+    _estimator.changeOperation(operation);
 
     if (operation == Operation::Complete()) {
         logComplete();

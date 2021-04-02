@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <ostream>
+#include <tuple>
 #include <vector>
 
 #include <iostream>
@@ -17,6 +18,9 @@ public:
     using Seconds = std::chrono::seconds;
     using Milliseconds = std::chrono::milliseconds;
     using DurationType = Milliseconds;
+    using ValuesTuple = std::tuple<ino64_t, ino64_t, ino64_t, ino64_t>;
+
+    ElapsedTime();
 
     ElapsedTime(const DurationType elapsedTime);
 
@@ -25,6 +29,14 @@ public:
     ElapsedTime(const std::string &elapsedTime);
 
     ElapsedTime &operator=(const ElapsedTime &other);
+
+    ElapsedTime &operator*=(const double &multiplier);
+
+    ElapsedTime &operator/=(const double &divisor);
+
+    bool operator==(const ElapsedTime &other) const;
+
+    bool operator!=(const ElapsedTime &other) const;
 
     const ElapsedTime operator+(const ElapsedTime &other) const;
 
@@ -44,9 +56,11 @@ public:
 
     static const ElapsedTime fromMilliseconds(const int64_t &milliseconds);
 
+    static const ElapsedTime fromValues(const ValuesTuple &values);
+
     const DurationType get() const;
 
-    int64_t hours() const;
+    int64_t hours(bool remainderOnly = true) const;
 
     int64_t minutes(bool remainderOnly = true) const;
 
@@ -58,6 +72,8 @@ public:
 
 private:
     DurationType _elapsedTime;
+
+    const ValuesTuple _parseString(const std::string &elapsedTime) const;
 };
 
 /**

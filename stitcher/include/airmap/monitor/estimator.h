@@ -22,15 +22,15 @@ public:
     using UpdatedCb = std::function<void()>;
 
     Estimator(
-            const boost::optional<Camera> &camera, const std::shared_ptr<Logger> logger,
-            UpdatedCb updatedCb = []() {}, bool enabled = false, bool logEnabled = false);
+        const boost::optional<Camera> camera,
+        const std::shared_ptr<Logger> logger, UpdatedCb updatedCb = []() {},
+        bool enabled = false, bool logEnabled = false);
 
     static const std::string estimateLogPrefix;
 
     static const std::string progressLogPrefix;
 
-    void changeOperation(const Operation &operation,
-                         const OperationElapsedTimesMap &operationTimes);
+    void changeOperation(const Operation &operation);
 
     const ElapsedTime currentEstimate() const;
 
@@ -57,7 +57,7 @@ public:
     // Sum all estimated operation times.
     const ElapsedTime estimatedTimeTotal() const;
 
-    void estimateOperations(const OperationElapsedTimesMap &operationTimes);
+    const OperationElapsedTimesMap estimateOperations() const;
 
     const OperationElapsedTimesMap operationEstimateTimes() const;
 
@@ -70,7 +70,7 @@ public:
     void updateCurrentOperation(double progress);
 
 private:
-    const boost::optional<Camera> &_camera;
+    const boost::optional<Camera> _camera;
     ElapsedTime _currentEstimate;
     Operation _currentOperation;
     double _currentOperationProgress;
