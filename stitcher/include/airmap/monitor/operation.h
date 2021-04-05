@@ -130,6 +130,8 @@ using OperationDoubleMap = std::map<Operation::Enum, const double>;
 using OperationDoublePair = std::pair<Operation::Enum, const double>;
 using OperationElapsedTimesMap = std::map<Operation::Enum, const ElapsedTime>;
 using OperationElapsedTimesPair = std::pair<Operation::Enum, const ElapsedTime>;
+using OperationElapsedTimesIter = OperationElapsedTimesMap::iterator;
+using OperationElapsedTimesMoveIter = std::move_iterator<OperationElapsedTimesIter>;
 
 } // namespace monitor
 } // namespace stitcher

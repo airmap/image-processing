@@ -27,7 +27,12 @@ void Estimator::changeOperation(const Operation &operation)
 
     _currentOperationProgress = 0.;
     _currentOperation = operation;
-    _operationEstimates = estimateOperations();
+
+    OperationElapsedTimesMap operationEstimates = estimateOperations();
+    _operationEstimates.insert(
+            OperationElapsedTimesMoveIter(std::begin(operationEstimates)),
+            OperationElapsedTimesMoveIter(std::end(operationEstimates)));
+
     log();
     updated();
 }
