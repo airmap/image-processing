@@ -13,7 +13,6 @@
 #include "airmap/panorama.h"
 
 using airmap::stitcher::monitor::Monitor;
-using airmap::stitcher::opencv::detail::MonitoredGraphCutSeamFinder;
 
 namespace airmap {
 namespace stitcher {

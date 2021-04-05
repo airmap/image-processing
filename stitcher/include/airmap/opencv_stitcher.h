@@ -31,6 +31,9 @@
 #include "airmap/stitcher.h"
 #include "airmap/stitcher_configuration.h"
 
+using MonitoredGraphCutSeamFinder =
+        airmap::stitcher::opencv::detail::MonitoredGraphCutSeamFinder;
+
 namespace airmap {
 namespace stitcher {
 

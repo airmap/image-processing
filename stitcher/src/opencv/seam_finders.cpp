@@ -1,6 +1,7 @@
 #include "airmap/opencv/seam_finders.h"
 
 #include <opencv2/imgproc/detail/gcgraph.hpp>
+#include <opencv2/stitching/detail/seam_finders.hpp>
 
 using namespace cv;
 using namespace cv::detail;
@@ -15,10 +16,10 @@ class MonitoredGraphCutSeamFinder::Impl
 public:
     Impl(Monitor::SharedPtr monitor, int cost_type, float terminal_cost,
          float bad_region_penalty)
-        : _monitor(monitor)
-        , cost_type_(cost_type)
+        : cost_type_(cost_type)
         , terminal_cost_(terminal_cost)
         , bad_region_penalty_(bad_region_penalty)
+        , _monitor(monitor)
     {
     }
 
