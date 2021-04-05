@@ -151,7 +151,7 @@ void LowLevelOpenCVStitcher::adjustCameraParameters(
         std::vector<cv::detail::MatchesInfo> &matches,
         std::vector<cv::detail::CameraParams> &cameras)
 {
-    _monitor.changeOperation(monitor::Operation::AdjustCameraParameters());
+    _monitor->changeOperation(monitor::Operation::AdjustCameraParameters());
 
     _logger->log(logging::Logger::Severity::info, "Adjusting camera parameters.", "stitcher");
     auto bundle_adjuster = getBundleAdjuster();
@@ -169,7 +169,7 @@ void LowLevelOpenCVStitcher::compose(
         LowLevelOpenCVStitcher::WarpResults &warp_results, double work_scale,
         double compose_scale, float warped_image_scale, cv::Mat &result)
 {
-    _monitor.changeOperation(monitor::Operation::Compose());
+    _monitor->changeOperation(monitor::Operation::Compose());
     _logger->log(logging::Logger::Severity::info, "Composing stitched image.", "stitcher");
 
     // compute relative scales
@@ -244,7 +244,7 @@ void LowLevelOpenCVStitcher::compose(
         image_warped_s.release();
         mask_warped.release();
 
-        _monitor.updateCurrentOperation(
+        _monitor->updateCurrentOperation(
             static_cast<double>(i) /
             static_cast<double>(source_images.images_scaled.size()));
     }
@@ -349,7 +349,7 @@ std::vector<cv::detail::CameraParams> LowLevelOpenCVStitcher::estimateCameraPara
         std::vector<cv::detail::ImageFeatures> &features,
         std::vector<cv::detail::MatchesInfo> &matches)
 {
-    _monitor.changeOperation(monitor::Operation::EstimateCameraParameters());
+    _monitor->changeOperation(monitor::Operation::EstimateCameraParameters());
 
     _logger->log(logging::Logger::Severity::info, "Estimating camera parameters.", "stitcher");
     std::vector<cv::detail::CameraParams> cameras;
@@ -374,7 +374,7 @@ std::vector<cv::detail::CameraParams> LowLevelOpenCVStitcher::estimateCameraPara
 std::vector<cv::detail::ImageFeatures>
 LowLevelOpenCVStitcher::findFeatures(SourceImages &source_images)
 {
-    _monitor.changeOperation(monitor::Operation::FindFeatures());
+    _monitor->changeOperation(monitor::Operation::FindFeatures());
 
     _logger->log(logging::Logger::Severity::info, "Finding features.", "stitcher");
     std::vector<cv::detail::ImageFeatures> features(source_images.images.size());
@@ -410,7 +410,7 @@ double LowLevelOpenCVStitcher::findMedianFocalLength(
 
 void LowLevelOpenCVStitcher::findSeams(LowLevelOpenCVStitcher::WarpResults &warp_results)
 {
-    _monitor.changeOperation(monitor::Operation::FindSeams());
+    _monitor->changeOperation(monitor::Operation::FindSeams());
 
     _logger->log(logging::Logger::Severity::info, "Finding seams.", "stitcher");
     auto seam_finder = getSeamFinder();
@@ -586,13 +586,14 @@ cv::Ptr<cv::detail::SeamFinder> LowLevelOpenCVStitcher::getSeamFinder()
         break;
     case SeamFinderType::GraphCutColor: // TODO(bkd): optional GPU support
         seam_finder = cv::makePtr<cv::detail::GraphCutSeamFinder>(
-                cv::detail::GraphCutSeamFinder::COST_COLOR);
+            cv::detail::GraphCutSeamFinder::COST_COLOR);
         break;
     case SeamFinderType::GraphCutColorGrad: // TODO(bkd): optional GPU support
-        seam_finder = cv::makePtr<cv::detail::GraphCutSeamFinder>(
-                cv::detail::GraphCutSeamFinder::COST_COLOR_GRAD,
-                _config.seam_finder_graph_cut_terminal_cost,
-                _config.seam_finder_graph_cut_bad_region_penalty);
+        std::cout << "GraphCutColorGrad" << std::endl;
+        seam_finder = cv::makePtr<MonitoredGraphCutSeamFinder>(
+            _monitor, cv::detail::GraphCutSeamFinder::COST_COLOR_GRAD,
+            _config.seam_finder_graph_cut_terminal_cost,
+            _config.seam_finder_graph_cut_bad_region_penalty);
         break;
     case SeamFinderType::Voronoi:
         seam_finder = cv::makePtr<cv::detail::VoronoiSeamFinder>();
@@ -703,7 +704,7 @@ double LowLevelOpenCVStitcher::getWorkScale(SourceImages &source_images)
 std::vector<cv::detail::MatchesInfo>
 LowLevelOpenCVStitcher::matchFeatures(std::vector<cv::detail::ImageFeatures> &features)
 {
-    _monitor.changeOperation(monitor::Operation::MatchFeatures());
+    _monitor->changeOperation(monitor::Operation::MatchFeatures());
 
     _logger->log(logging::Logger::Severity::info, "Matching features.", "stitcher");
     std::vector<cv::detail::MatchesInfo> matches;
@@ -753,7 +754,8 @@ cv::Ptr<cv::detail::ExposureCompensator>
 LowLevelOpenCVStitcher::prepareExposureCompensation(
         LowLevelOpenCVStitcher::WarpResults &warp_results)
 {
-    _monitor.changeOperation(monitor::Operation::PrepareExposureCompensation());
+    _monitor->changeOperation(
+        monitor::Operation::PrepareExposureCompensation());
 
     _logger->log(logging::Logger::Severity::info, "Preparing exposure compensation.", "stitcher");
     auto compensator = getExposureCompensator();
@@ -787,7 +789,7 @@ void LowLevelOpenCVStitcher::cancel() { }
 
 Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
 {
-    _monitor.changeOperation(monitor::Operation::Start());
+    _monitor->changeOperation(monitor::Operation::Start());
 
     Stitcher::Report report;
     std::list<std::string> sourceImagePaths = _panorama.inputPaths();
@@ -869,14 +871,14 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     compose(source_images, cameras, exposure_compensator, warp_results,
             work_scale, compose_scale, warped_image_scale, result);
 
-    _monitor.changeOperation(monitor::Operation::Complete());
+    _monitor->changeOperation(monitor::Operation::Complete());
 
     return report;
 }
 
 void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 {
-    _monitor.changeOperation(monitor::Operation::UndistortImages());
+    _monitor->changeOperation(monitor::Operation::UndistortImages());
 
     if (!_camera.has_value()) {
         _logger->log(logging::Logger::Severity::info, "Camera model not identified.", "stitcher");
@@ -895,7 +897,7 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 
         cv::Mat K = camera.K();
         for (size_t i = 0; i < source_images.images.size(); ++i) {
-            _monitor.updateCurrentOperation(
+            _monitor->updateCurrentOperation(
                 static_cast<double>(i) /
                 static_cast<double>(source_images.images.size()));
             camera.distortion_model->undistort(source_images.images[i], K);

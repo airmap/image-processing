@@ -1,7 +1,7 @@
 #pragma once
 
-#include <sstream>
 #include <atomic>
+#include <sstream>
 
 #include <boost/optional.hpp>
 
@@ -9,39 +9,45 @@
 #include "airmap/camera_models.h"
 #include "airmap/logging.h"
 #include "airmap/monitor/monitor.h"
+#include "airmap/opencv/seam_finders.h"
 #include "airmap/panorama.h"
+
+using airmap::stitcher::monitor::Monitor;
+using airmap::stitcher::opencv::detail::MonitoredGraphCutSeamFinder;
 
 namespace airmap {
 namespace stitcher {
 
 /**
- * @brief is a baseclass that can be put to the task of stitching a 360 Panorama.
- * @details Stitcher is cancellable, which means a single instance is single use.
+ * @brief is a baseclass that can be put to the task of stitching a 360
+ * Panorama.
+ * @details Stitcher is cancellable, which means a single instance is single
+ * use.
  */
 class Stitcher {
 public:
-
     /**
      * @brief The Report struct conveys metatada about the stitched image
-     * @details the stitcher has decisions to make (how much do we scale the input?)
-     * and stats to collect (how many features were detected), while the caller may
-     * be intested in knowing what these were. The stitcher may report them via this
-     * structure.
+     * @details the stitcher has decisions to make (how much do we scale the
+     * input?) and stats to collect (how many features were detected), while the
+     * caller may be intested in knowing what these were. The stitcher may
+     * report them via this structure.
      */
     struct Report {
         /**
          * @brief inputScaled - the fraction to which the input was scaled.
-         *  Stitcher has RAM requirements and it may decide that it can only succeed
-         *  with the RAM it is given if it scales the input images.
+         *  Stitcher has RAM requirements and it may decide that it can only
+         * succeed with the RAM it is given if it scales the input images.
          */
         double inputScaled = 1.0;
         size_t inputSizeMB = 0;
     };
 
     /**
-     * @brief The RetriableError class conveys a stitching error that can be retried on.
-     * @details The process of stitching (esp. feature extraction and matching) can be
-     * indeterministic.
+     * @brief The RetriableError class conveys a stitching error that can be
+     * retried on.
+     * @details The process of stitching (esp. feature extraction and matching)
+     * can be indeterministic.
      */
     class RetriableError : public std::invalid_argument {
     public:
@@ -85,21 +91,23 @@ public:
     using SharedPtr = std::shared_ptr<MonitoredStitcher>;
     using UpdatedCb = monitor::Estimator::UpdatedCb;
 
-    MonitoredStitcher(const Panorama &panorama, const Panorama::Parameters &parameters,
-                      std::shared_ptr<Logger> logger,
-                      UpdatedCb updatedCb = []() {})
+    MonitoredStitcher(
+        const Panorama &panorama, const Panorama::Parameters &parameters,
+        std::shared_ptr<Logger> logger, UpdatedCb updatedCb = []() {})
         : _camera(CameraModels().detect(panorama.front()))
-        , _estimator(_camera, logger, updatedCb,
-                     parameters.enableEstimate, parameters.enableEstimateLog)
-        , _monitor(_estimator, logger, parameters.enableElapsedTime,
-                   parameters.enableEstimateLog)
+        , _estimator(_camera, logger, updatedCb, parameters.enableEstimate,
+                     parameters.enableEstimateLog)
+        , _monitor(std::make_shared<Monitor>(_estimator, logger,
+                                             parameters.enableElapsedTime,
+                                             parameters.enableEstimateLog))
     {
-        _estimator.setOperationTimesCb([this]() { return _monitor.operationTimes(); });
+        _estimator.setOperationTimesCb(
+            [this]() { return _monitor->operationTimes(); });
     }
 
     monitor::Estimator &estimator() { return _estimator; }
 
-    monitor::Monitor &monitor() { return _monitor; }
+    Monitor::SharedPtr monitor() { return _monitor; }
 
 protected:
     /**
@@ -118,7 +126,7 @@ protected:
      * @brief _monitor
      * The stitcher monitor.  Manages operation elapsed time and estimates.
      */
-    monitor::Monitor _monitor;
+    Monitor::SharedPtr _monitor;
 };
 
 /**
@@ -136,12 +144,14 @@ public:
     {
     }
 
-    void cancel() override {
+    void cancel() override
+    {
         _retries = 0;
         _underlying->cancel();
     }
 
-    Report stitch() override {
+    Report stitch() override
+    {
         for (size_t i = 0; i < _retries; i++) {
             try {
                 return _underlying->stitch();
@@ -151,8 +161,10 @@ public:
                 }
                 _underlying->setFallbackMode();
                 std::stringstream ss;
-                ss << "Stitching failed with " << e.what() << ", retrying, retries left " << _retries - i;
-                _logger->log(logging::Logger::Severity::error, ss.str().c_str(), "stitcher");
+                ss << "Stitching failed with " << e.what()
+                   << ", retrying, retries left " << _retries - i;
+                _logger->log(logging::Logger::Severity::error, ss.str().c_str(),
+                             "stitcher");
             }
         }
         return _underlying->stitch();
@@ -164,5 +176,5 @@ protected:
     std::shared_ptr<logging::Logger> _logger;
 };
 
-} // namespace stitchar
+} // namespace stitcher
 } // namespace airmap

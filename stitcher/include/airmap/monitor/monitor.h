@@ -21,8 +21,10 @@ namespace monitor {
  */
 class Monitor {
 public:
-    Monitor(Estimator &estimator, std::shared_ptr<Logger> logger, bool enabled = false,
-            bool logEnabled = false);
+    using SharedPtr = std::shared_ptr<Monitor>;
+
+    Monitor(Estimator &estimator, std::shared_ptr<Logger> logger,
+            bool enabled = false, bool logEnabled = false);
 
     /**
      * @brief changeOperation

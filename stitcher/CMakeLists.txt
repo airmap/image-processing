@@ -28,6 +28,7 @@ add_library(
     src/monitor/estimator.cpp
     src/monitor/monitor.cpp
     src/monitor/timer.cpp
+    src/opencv/seam_finders.cpp
     src/panorama.cpp
     src/stitcher.cpp
     3rdParty/TinyEXIF/TinyEXIF.cpp

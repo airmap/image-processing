@@ -27,6 +27,7 @@
 #include "airmap/images.h"
 #include "airmap/logging.h"
 #include "airmap/monitor/estimator.h"
+#include "airmap/opencv/seam_finders.h"
 #include "airmap/stitcher.h"
 #include "airmap/stitcher_configuration.h"
 
