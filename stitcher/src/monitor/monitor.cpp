@@ -99,13 +99,13 @@ const OperationElapsedTimesMap Monitor::operationTimes() const
     return _operationTimes;
 }
 
-void Monitor::updateCurrentOperation(double progressPercent)
+void Monitor::updateCurrentOperation(double progress)
 {
     if (!_enabled) {
         return;
     }
 
-    _estimator.updateCurrentOperation(progressPercent);
+    _estimator.updateCurrentOperation(progress);
 }
 
 } // namespace monitor

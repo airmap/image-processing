@@ -17,7 +17,7 @@ namespace monitor {
 
 /**
  * @brief Monitor
- * Manages operation timer and estimates.
+ * Manages operation timer, estimates, and progress.
  */
 class Monitor {
 public:
@@ -39,12 +39,28 @@ public:
      */
     Operation currentOperation();
 
+    /**
+     * @brief disable
+     * Disable monitoring of operation elapsed times.
+     */
     void disable();
 
+    /**
+     * @brief disableLog
+     * Disable logging of operation elapsed times.
+     */
     void disableLog();
 
+    /**
+     * @brief enable
+     * Enables monitoring of operation elapsed times.
+     */
     void enable();
 
+    /**
+     * @brief enableLog
+     * Enables logging of operation elapsed times.
+     */
     void enableLog();
 
     /**
@@ -53,18 +69,60 @@ public:
      */
     const OperationElapsedTimesMap operationTimes() const;
 
-    void updateCurrentOperation(double progressPercent);
+    /**
+     * @brief updateCurrentOperation
+     * @param progress Progress of the current operation.  A number
+     * between 0 and 1.
+     */
+    void updateCurrentOperation(double progress);
 
 private:
+    /**
+     * @brief _estimator
+     * A reference to an instance of an estimator.
+     */
     Estimator &_estimator;
+
+    /**
+     * @brief _operationTimes
+     * The current elapsed times for each operation.
+     */
     OperationElapsedTimesMap _operationTimes;
+
+    /**
+     * @brief _logger
+     * A pointer to an instance of a logger.
+     */
     std::shared_ptr<Logger> _logger;
+
+    /**
+     * @brief _enabled
+     * Whether to monitor elapsed times for operations.
+     */
     bool _enabled;
+
+    /**
+     * @brief _logEnabled
+     * Whether to log operation elapsed times.
+     */
     bool _logEnabled;
+
+    /**
+     * @brief _timer
+     * An instance of a timer.  Used to time each operation.
+     */
     Timer _timer;
 
+    /**
+     * @brief logComplete
+     * Logs the total elapsed time of the stitch when complete.
+     */
     void logComplete() const;
 
+    /**
+     * @brief logOperation
+     * Logs the elapsed time for an operation, when complete.
+     */
     void logOperation(const Operation &operation) const;
 };
 
