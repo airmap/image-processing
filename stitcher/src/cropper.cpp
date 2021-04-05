@@ -1,7 +1,6 @@
 #include "cropper.h"
 
 #include <algorithm>
-#include <iostream>
 #include <iterator>
 
 #include <opencv2/imgproc.hpp>

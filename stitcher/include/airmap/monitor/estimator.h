@@ -143,7 +143,7 @@ public:
 
     /**
      * @brief setCurrentProgress
-     * Sets the current progress value.
+     * Sets the current progress value.  A number between 0 and 100.
      * This is useful if the instance of the stitcher is managing
      * a child process.  In that case, the parent stitcher is scraping
      * the logs of the child process for progress updates and setting
@@ -193,7 +193,7 @@ private:
     /**
      * @brief _currentProgress
      * The current progress of the overall stitch.
-     * A number between 0 and 1.
+     * A number between 0 and 100.
      */
     double _currentProgress;
 

@@ -5,8 +5,6 @@
 #include <tuple>
 #include <vector>
 
-#include <iostream>
-
 namespace airmap {
 namespace stitcher {
 namespace monitor {

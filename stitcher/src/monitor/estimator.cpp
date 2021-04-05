@@ -76,7 +76,7 @@ double Estimator::currentProgress() const
         return 0.;
     }
 
-    return 1. - estimatedTimeRemaining() / estimatedTimeTotal();
+    return 100. * (1. - estimatedTimeRemaining() / estimatedTimeTotal());
 }
 
 void Estimator::disable()
@@ -299,7 +299,7 @@ void Estimator::log() const
                  (estimateLogPrefix + currentEstimate().str()).c_str(), "stitcher");
 
     _logger->log(Logger::Severity::info,
-                 (progressLogPrefix + std::to_string(currentProgress() * 100.)).c_str(),
+                 (progressLogPrefix + std::to_string(currentProgress())).c_str(),
                  "stitcher");
 }
 

@@ -589,7 +589,6 @@ cv::Ptr<cv::detail::SeamFinder> LowLevelOpenCVStitcher::getSeamFinder()
             cv::detail::GraphCutSeamFinder::COST_COLOR);
         break;
     case SeamFinderType::GraphCutColorGrad: // TODO(bkd): optional GPU support
-        std::cout << "GraphCutColorGrad" << std::endl;
         seam_finder = cv::makePtr<MonitoredGraphCutSeamFinder>(
             _monitor, cv::detail::GraphCutSeamFinder::COST_COLOR_GRAD,
             _config.seam_finder_graph_cut_terminal_cost,

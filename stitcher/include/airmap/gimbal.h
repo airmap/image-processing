@@ -1,7 +1,6 @@
 #pragma once
 
 #include <opencv2/core/utility.hpp>
-#include <iostream>
 
 namespace airmap {
 namespace stitcher {
