@@ -288,7 +288,7 @@ TEST_F(EstimatorTest, currentProgress)
 
     const ElapsedTime startingTimeRemaining =
         estimator.estimatedTimeRemaining();
-    double startingProgress = 1 - startingTimeRemaining / estimatedTimeTotal;
+    double startingProgress = 100. * (1 - startingTimeRemaining / estimatedTimeTotal);
     EXPECT_EQ(estimator.currentProgress(), startingProgress);
 
     const ElapsedTime undistortEstimate =
@@ -302,12 +302,15 @@ TEST_F(EstimatorTest, currentProgress)
         double operationProgress = static_cast<double>(i) / 50.;
         estimator.updateCurrentOperation(operationProgress);
         EXPECT_EQ(estimator.currentProgress(),
-                  1. - estimator.estimatedTimeRemaining() /
-                           estimator.estimatedTimeTotal());
+                  100.
+                          * (1.
+                             - estimator.estimatedTimeRemaining()
+                                     / estimator.estimatedTimeTotal()));
 
-        EXPECT_LT(estimator.currentProgress() -
-                      (startingProgress +
-                       operationProgress * undistortOperationPercent),
+        EXPECT_LT(estimator.currentProgress()
+                          - 100.
+                                  * (startingProgress
+                                     + operationProgress * undistortOperationPercent),
                   0.00001);
     }
 }
