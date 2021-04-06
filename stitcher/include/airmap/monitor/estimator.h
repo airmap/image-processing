@@ -60,7 +60,7 @@ public:
     /**
      * @brief currentProgress
      * Calculates and returns the current progress
-     * as a number between 0 and 1.
+     * as a number between 0 and 100.
      */
     double currentProgress() const;
 
