@@ -311,41 +311,49 @@ void LowLevelOpenCVStitcher::debugImages(std::vector<cv::Mat> &images,
     }
 }
 
-void LowLevelOpenCVStitcher::debugMatches(SourceImages &source_images,
-        std::vector<cv::detail::ImageFeatures> &features,
-        std::vector<cv::detail::MatchesInfo> &matches,
-        float conf_threshold, cv::DrawMatchesFlags flags)
+void LowLevelOpenCVStitcher::debugMatches(
+    const std::vector<cv::Mat> &source_images,
+    const std::vector<cv::detail::ImageFeatures> &features,
+    std::vector<cv::detail::MatchesInfo> &matches, float conf_threshold,
+    const path debug_path, const cv::DrawMatchesFlags flags) const
 {
     if (!_debug) { return; }
 
-    path image_path_base = _debugPath / "matches";
-    boost::filesystem::create_directories(image_path_base.string());
+    boost::filesystem::create_directories(debug_path);
+
+    // std::cout << "source_images: " << source_images.size() << std::endl;
+    // std::cout << "matches: " << matches.size() << std::endl;
 
     const int num_matches = static_cast<int>(matches.size());
     for (int i = 0; i < num_matches; ++i) {
-        cv::detail::MatchesInfo match = matches[i];
+        cv::detail::MatchesInfo &match = matches[i];
         if (match.confidence < conf_threshold) {
             continue;
         }
-        
+
         cv::Mat img_matches;
-        cv::Mat src_img = source_images.images_scaled[match.src_img_idx];
-        cv::Mat dst_img = source_images.images_scaled[match.dst_img_idx];
-        std::vector<cv::KeyPoint> src_keypoints = features[match.src_img_idx].getKeypoints();
-        std::vector<cv::KeyPoint> dst_keypoints = features[match.dst_img_idx].getKeypoints();
-        cv::drawMatches(src_img, src_keypoints, dst_img, dst_keypoints, match.matches, img_matches, cv::Scalar::all(-1),
-            cv::Scalar::all(-1), std::vector<char>(), flags);
+        // std::cout << i << ": src_img_idx: " << match.src_img_idx
+        //           << " dst_img_idx: " << match.dst_img_idx << std::endl;
+        cv::Mat src_img = source_images[match.src_img_idx];
+        cv::Mat dst_img = source_images[match.dst_img_idx];
+        const std::vector<cv::KeyPoint> &src_keypoints =
+            features[match.src_img_idx].keypoints;
+        const std::vector<cv::KeyPoint> &dst_keypoints =
+            features[match.dst_img_idx].keypoints;
+        cv::drawMatches(src_img, src_keypoints, dst_img, dst_keypoints,
+                        match.matches, img_matches, cv::Scalar::all(-1),
+                        cv::Scalar::all(-1), std::vector<char>(), flags);
 
         std::string image_name = (boost::format("%1%_%2%.jpg") % std::to_string(match.src_img_idx) % std::to_string(match.dst_img_idx)).str();
-        std::string image_path = (image_path_base / image_name).string();
+        std::string image_path = (debug_path / image_name).string();
 
         cv::imwrite(image_path, img_matches);
     }
 
     // Create and save matches graph.
     std::vector<std::string> image_names;
-    image_names.reserve(source_images.images_scaled.size());
-    for (size_t i = 0; i < source_images.images_scaled.size(); ++i) {
+    image_names.reserve(source_images.size());
+    for (size_t i = 0; i < source_images.size(); ++i) {
         image_names.push_back(std::to_string(i));
     }
     std::string matches_graph_path = (_debugPath / "matches.dot").string();
@@ -394,18 +402,17 @@ std::vector<cv::detail::CameraParams> LowLevelOpenCVStitcher::estimateCameraPara
     return cameras;
 }
 
-std::vector<cv::detail::ImageFeatures>
-LowLevelOpenCVStitcher::findFeatures(SourceImages &source_images)
+std::vector<cv::detail::ImageFeatures> LowLevelOpenCVStitcher::findFeatures(
+    const std::vector<cv::Mat> &source_images) const
 {
     _monitor->changeOperation(monitor::Operation::FindFeatures());
 
     _logger->log(logging::Logger::Severity::info, "Finding features.", "stitcher");
-    std::vector<cv::detail::ImageFeatures> features(source_images.images.size());
+    std::vector<cv::detail::ImageFeatures> features(source_images.size());
     cv::Ptr<cv::Feature2D> finder = getFeaturesFinder();
 
-    for (size_t i = 0; i < source_images.images_scaled.size(); i++) {
-        cv::detail::computeImageFeatures(finder, source_images.images_scaled[i],
-                                         features[i]);
+    for (size_t i = 0; i < source_images.size(); i++) {
+        cv::detail::computeImageFeatures(finder, source_images[i], features[i]);
 
         features[i].img_idx = static_cast<int>(i);
     }
@@ -549,7 +556,7 @@ cv::Ptr<cv::detail::ExposureCompensator> LowLevelOpenCVStitcher::getExposureComp
     return compensator;
 }
 
-cv::Ptr<cv::Feature2D> LowLevelOpenCVStitcher::getFeaturesFinder()
+cv::Ptr<cv::Feature2D> LowLevelOpenCVStitcher::getFeaturesFinder() const
 {
     cv::Ptr<cv::Feature2D> features_finder;
 
@@ -787,6 +794,140 @@ LowLevelOpenCVStitcher::prepareExposureCompensation(
     return compensator;
 }
 
+void LowLevelOpenCVStitcher::rotateImage(cv::Mat &image, double angle)
+{
+    cv::Size size = image.size();
+    float x = (size.width - 1) / 2.f;
+    float y = (size.height - 1) / 2.f;
+    cv::Point2f center(x, y);
+    cv::Mat rotation = cv::getRotationMatrix2D(center, angle, 1.);
+    cv::Mat image_rotated;
+    cv::warpAffine(image, image_rotated, rotation, size);
+    image = image_rotated;
+}
+
+bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
+    const std::vector<cv::Mat> &original_images, cv::InputArray &warped_images)
+{
+    std::vector<cv::Mat> warped_images_;
+    warped_images.getMatVector(warped_images_);
+
+    // Build vector of warped images rotated 180 degrees.
+    std::vector<cv::Mat> warped_rotated_images;
+    cv::Mat warped_rotated_image;
+    for (size_t i = 0; i < warped_images_.size(); i++) {
+        float x = (warped_images_[i].size().width - 1) / 2.f;
+        float y = (warped_images_[i].size().height - 1) / 2.f;
+        cv::Point2f center(x, y);
+        cv::Mat rotation = cv::getRotationMatrix2D(center, 180., 1.);
+        cv::warpAffine(warped_images_[i], warped_rotated_image, rotation,
+                       warped_images_[i].size());
+        warped_rotated_images.push_back(warped_rotated_image);
+    }
+
+    // TODO(bkd): std::move on const reference seems to be okay?
+    std::vector<cv::Mat> all_images;
+    cv::Mat resized;
+    for (size_t i = 0; i < original_images.size(); i++) {
+        cv::resize(original_images[i], resized, warped_images_[i].size());
+        all_images.push_back(resized);
+    }
+    all_images.insert(all_images.end(),
+                      std::make_move_iterator(warped_images_.begin()),
+                      std::make_move_iterator(warped_images_.end()));
+    all_images.insert(all_images.end(),
+                      std::make_move_iterator(warped_rotated_images.begin()),
+                      std::make_move_iterator(warped_rotated_images.end()));
+
+    // Find features.
+    auto features = findFeatures(all_images);
+
+    // Match features.
+    auto matcher = cv::makePtr<ThreeSixtyPanoramaOrientationMatcher>(
+        _config.try_cuda, _config.match_conf);
+    std::vector<cv::detail::MatchesInfo> matches;
+    (*matcher)(features, matches);
+    matcher->collectGarbage();
+
+    debugMatches(all_images, features, matches, 0.,
+                 _debugPath / "should_rotate_matches");
+
+    cv::Point2f error_total_a(0., 0.);
+    cv::Point2f error_total_b(0., 0.);
+
+    bool series_a = true;
+    float match_count = 0;
+
+    for (size_t i = 0; i < matches.size(); i++) {
+        if (i >= matches.size() / 2.) {
+            series_a = false;
+        }
+
+        cv::Point2f error_src_last(0., 0.);
+        cv::Point2f error_dst_last(0., 0.);
+
+        if (matches[i].confidence > _config.match_conf_thresh) {
+            cv::detail::ImageFeatures &src_features =
+                features[matches[i].src_img_idx];
+            cv::detail::ImageFeatures &dst_features =
+                features[matches[i].dst_img_idx];
+
+            for (size_t j = 0; j < matches[i].matches.size(); j++) {
+                cv::KeyPoint &src_keypoint =
+                    src_features.keypoints[matches[i].matches[j].queryIdx];
+                cv::KeyPoint &dst_keypoint =
+                    dst_features.keypoints[matches[i].matches[j].trainIdx];
+
+                if (j > 0) {
+                    if (series_a) {
+                        error_total_a.x +=
+                            abs(src_keypoint.pt.x - dst_keypoint.pt.x);
+                        error_total_a.y +=
+                            abs(src_keypoint.pt.y - dst_keypoint.pt.y);
+                    } else {
+                        error_total_b.x +=
+                            abs(src_keypoint.pt.x - dst_keypoint.pt.x);
+                        error_total_b.y +=
+                            abs(src_keypoint.pt.y - dst_keypoint.pt.y);
+                    }
+                    match_count++;
+                }
+
+                error_src_last = src_keypoint.pt;
+                error_dst_last = dst_keypoint.pt;
+            }
+        }
+    }
+
+    cv::Point2f error_avg_a(
+        error_total_a.x > 0.f ? error_total_a.x / match_count : 0.f,
+        error_total_a.y > 0.f ? error_total_a.y / match_count : 0.f);
+    cv::Point2f error_avg_b(
+        error_total_b.x > 0.f ? error_total_b.x / match_count : 0.f,
+        error_total_b.y > 0.f ? error_total_b.y / match_count : 0.f);
+
+    std::cout << "error_total_a x: " << error_total_a.x
+              << " y: " << error_total_a.y << std::endl;
+    std::cout << "error_avg_a x: " << error_avg_a.x << " y: " << error_avg_a.y
+              << std::endl;
+    std::cout << "error_total_b x: " << error_total_b.x
+              << " y: " << error_total_b.y << std::endl;
+    std::cout << "error_avg_b x: " << error_avg_b.x << " y: " << error_avg_b.y
+              << std::endl;
+
+    bool should_rotate =
+        error_avg_b.x < error_avg_a.x && error_avg_b.y < error_avg_a.y;
+    if (should_rotate) {
+        _logger->log(Logger::Severity::info, "Should rotate panorama.",
+                     "stitcher");
+    } else {
+        _logger->log(Logger::Severity::info, "Should not rotate panorama.",
+                     "stitcher");
+    }
+
+    return should_rotate;
+}
+
 Stitcher::Report LowLevelOpenCVStitcher::stitch()
 {
     cv::Mat result;
@@ -839,10 +980,11 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     source_images.scale(work_scale);
 
     // Find features and matches.
-    auto features = findFeatures(source_images);
+    auto features = findFeatures(source_images.images_scaled);
     debugFeatures(source_images, features);
     auto matches = matchFeatures(features);
-    debugMatches(source_images, features, matches, _config.match_conf_thresh);
+    debugMatches(source_images.images_scaled, features, matches,
+                 _config.match_conf_thresh, _debugPath / "matches");
 
     // Filter images with poor matching.
     auto keep_indices = cv::detail::leaveBiggestComponent(
@@ -873,6 +1015,12 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     // Prepare exposure compensation.
     auto exposure_compensator = prepareExposureCompensation(warp_results);
 
+    bool should_rotate_result =
+        _config.stitch_type == StitchType::ThreeSixty
+            ? shouldRotateThreeSixty(source_images.images_scaled,
+                                     warp_results.images_warped)
+            : false;
+
     // Release memory.
     warp_results.images_warped.clear();
     warp_results.masks.clear();
@@ -892,6 +1040,10 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
     // Compose the final panorama.
     compose(source_images, cameras, exposure_compensator, warp_results,
             work_scale, compose_scale, warped_image_scale, result);
+
+    if (should_rotate_result) {
+        rotateImage(result, 180.);
+    }
 
     _monitor->changeOperation(monitor::Operation::Complete());
 
