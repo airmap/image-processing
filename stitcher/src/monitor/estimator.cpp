@@ -4,7 +4,7 @@ namespace airmap {
 namespace stitcher {
 namespace monitor {
 
-Estimator::Estimator(const boost::optional<Camera> camera,
+Estimator::Estimator(const std::shared_ptr<Camera> camera,
                      const std::shared_ptr<Logger> logger, UpdatedCb updatedCb,
                      bool enabled, bool logEnabled)
     : _camera(camera)
@@ -194,12 +194,11 @@ const OperationElapsedTimesMap Estimator::estimateOperations() const
         return operationEstimates;
     }
 
-    if (_camera.has_value()) {
-        Camera camera = _camera.get();
-
-        if (camera.distortion_model) {
+    if (_camera) {
+        if (_camera->distortion_model) {
             PinholeDistortionModel *pinholeDistortionModel =
-                    dynamic_cast<PinholeDistortionModel *>(camera.distortion_model.get());
+                dynamic_cast<PinholeDistortionModel *>(
+                    _camera->distortion_model.get());
             if (pinholeDistortionModel) {
                 operationEstimates.clear();
                 operationEstimates.insert(std::make_pair(
@@ -232,8 +231,8 @@ const OperationElapsedTimesMap Estimator::estimateOperations() const
             }
 
             ScaramuzzaDistortionModel *scaramuzzaDistortionModel =
-                    dynamic_cast<ScaramuzzaDistortionModel *>(
-                            camera.distortion_model.get());
+                dynamic_cast<ScaramuzzaDistortionModel *>(
+                    _camera->distortion_model.get());
             if (scaramuzzaDistortionModel) {
                 operationEstimates.insert(std::make_pair(
                         Operation::Start().value(), ElapsedTime::fromMilliseconds(1500)));

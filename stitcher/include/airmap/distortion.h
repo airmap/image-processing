@@ -5,12 +5,6 @@
 #include "boost/filesystem.hpp"
 #include "boost/format.hpp"
 
-#include <opencv2/calib3d.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/core/utility.hpp>
-#include "opencv2/imgproc.hpp"
-#include "opencv2/imgcodecs.hpp"
-
 using boost::filesystem::path;
 
 namespace airmap {

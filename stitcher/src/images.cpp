@@ -1,4 +1,11 @@
-#include "airmap/images.h" 
+#include "airmap/images.h"
+
+#include <boost/format.hpp>
+
+#include <opencv2/core/utility.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/opencv_modules.hpp>
+#include <opencv2/stitching.hpp>
 
 namespace airmap {
 namespace stitcher {

@@ -20,8 +20,10 @@ using airmap::stitcher::monitor::OperationElapsedTimesMap;
 class EstimatorTest : public ::testing::Test {
 protected:
     EstimatorTest()
-        : cameraAnafi(CameraModels::ParrotAnafiThermal())
-        , cameraVesper(CameraModels::VantageVesperEONavigation())
+        : cameraAnafi(
+              std::make_shared<Camera>(CameraModels::ParrotAnafiThermal()))
+        , cameraVesper(std::make_shared<Camera>(
+              CameraModels::VantageVesperEONavigation()))
         , logger(std::make_shared<stdoe_logger>())
     {
     }
@@ -75,8 +77,8 @@ protected:
         return operationTimes;
     }
 
-    Camera cameraAnafi;
-    Camera cameraVesper;
+    std::shared_ptr<Camera> cameraAnafi;
+    std::shared_ptr<Camera> cameraVesper;
     std::shared_ptr<Logger> logger;
 };
 

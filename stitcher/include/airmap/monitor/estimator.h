@@ -1,7 +1,5 @@
 #pragma once
 
-#include <boost/optional.hpp>
-
 #include "airmap/camera.h"
 #include "airmap/logging.h"
 #include "airmap/monitor/operation.h"
@@ -23,7 +21,7 @@ public:
     using UpdatedCb = std::function<void()>;
 
     Estimator(
-        const boost::optional<Camera> camera,
+        const std::shared_ptr<Camera> camera,
         const std::shared_ptr<Logger> logger, UpdatedCb updatedCb = []() {},
         bool enabled = false, bool logEnabled = false);
 
@@ -170,7 +168,7 @@ private:
      * @brief _camera
      * The detected camera, if any.
      */
-    const boost::optional<Camera> _camera;
+    const std::shared_ptr<Camera> _camera;
 
     /**
      * @brief _currentEstimate

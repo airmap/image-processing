@@ -7,6 +7,9 @@
 
 #include "boost/filesystem.hpp"
 
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
 namespace airmap {
 namespace stitcher {
 

@@ -3,13 +3,10 @@
 #include <atomic>
 #include <sstream>
 
-#include <boost/optional.hpp>
-
 #include "airmap/camera.h"
 #include "airmap/camera_models.h"
 #include "airmap/logging.h"
 #include "airmap/monitor/monitor.h"
-#include "airmap/opencv/seam_finders.h"
 #include "airmap/panorama.h"
 
 using airmap::stitcher::monitor::Monitor;
@@ -113,7 +110,7 @@ protected:
      * @brief _camera
      * The detected camera.
      */
-    const boost::optional<Camera> _camera;
+    const std::shared_ptr<Camera> _camera;
 
     /**
      * @brief _estimator

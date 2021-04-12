@@ -2,6 +2,26 @@
 #include "cropper.h"
 #include "cubemap.h"
 
+#include <opencv2/core/ocl.hpp>
+#include <opencv2/core/utility.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/opencv_modules.hpp>
+#include <opencv2/stitching.hpp>
+#include <opencv2/stitching/detail/autocalib.hpp>
+#include <opencv2/stitching/detail/blenders.hpp>
+#include <opencv2/stitching/detail/camera.hpp>
+#include <opencv2/stitching/detail/exposure_compensate.hpp>
+#include <opencv2/stitching/detail/matchers.hpp>
+#include <opencv2/stitching/detail/motion_estimators.hpp>
+#include <opencv2/stitching/detail/seam_finders.hpp>
+#include <opencv2/stitching/detail/timelapsers.hpp>
+#include <opencv2/stitching/detail/warpers.hpp>
+#include <opencv2/stitching/warpers.hpp>
+
+using MonitoredGraphCutSeamFinder =
+    airmap::stitcher::opencv::detail::MonitoredGraphCutSeamFinder;
+
 namespace airmap {
 namespace stitcher {
 
@@ -139,10 +159,10 @@ LowLevelOpenCVStitcher::LowLevelOpenCVStitcher(
     const Panorama::Parameters &parameters, const std::string &outputPath,
     std::shared_ptr<logging::Logger> logger,
     monitor::Estimator::UpdatedCb updatedCb, bool debug, path debugPath)
-    : OpenCVStitcher(panorama, parameters, outputPath, logger, updatedCb, debug, debugPath)
-    , _config((_camera.has_value()
-                   ? _camera.get().configuration(config, config.stitch_type)
-                   : config))
+    : OpenCVStitcher(panorama, parameters, outputPath, logger, updatedCb, debug,
+                     debugPath)
+    , _config(_camera ? _camera->configuration(config, config.stitch_type)
+                      : config)
 {
 }
 
@@ -879,27 +899,26 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 {
     _monitor->changeOperation(monitor::Operation::UndistortImages());
 
-    if (!_camera.has_value()) {
+    if (!_camera) {
         _logger->log(logging::Logger::Severity::info, "Camera model not identified.", "stitcher");
         return;
     }
 
-    Camera camera = _camera.get();
-    if (!camera.distortion_model) {
+    if (!_camera->distortion_model) {
         _logger->log(logging::Logger::Severity::info, "Camera model doesn't have a distortion model.  Skipping undistortion.", "stitcher");
         return;
     }
 
-    if (camera.distortion_model->enabled()) {
+    if (_camera->distortion_model->enabled()) {
         std::stringstream ss;
         _logger->log(logging::Logger::Severity::info, "Undistorting images.", "stitcher");
 
-        cv::Mat K = camera.K();
+        cv::Mat K = _camera->K();
         for (size_t i = 0; i < source_images.images.size(); ++i) {
             _monitor->updateCurrentOperation(
                 static_cast<double>(i) /
                 static_cast<double>(source_images.images.size()));
-            camera.distortion_model->undistort(source_images.images[i], K);
+            _camera->distortion_model->undistort(source_images.images[i], K);
         }
 
         if (_debug) {
@@ -913,21 +932,20 @@ void LowLevelOpenCVStitcher::undistortImages(SourceImages &source_images)
 
 void LowLevelOpenCVStitcher::undistortCropImages(SourceImages &source_images)
 {
-    if (!_camera.has_value()) {
+    if (!_camera) {
         _logger->log(logging::Logger::Severity::info, "Camera model not identified.", "stitcher");
         return;
     }
 
-    Camera camera = _camera.get();
-    if (!camera.distortion_model) {
+    if (!_camera->distortion_model) {
         _logger->log(logging::Logger::Severity::info, "Camera model doesn't have a distortion model.  Skipping undistortion.", "stitcher");
         return;
     }
 
-    if (camera.distortion_model->enabled()) {
+    if (_camera->distortion_model->enabled()) {
         std::stringstream ss;
         _logger->log(logging::Logger::Severity::info, "Undistortion cropping images.", "stitcher");
-        camera.distortion_model->crop(source_images.images);
+        _camera->distortion_model->crop(source_images.images);
 
         if (_debug) {
             path undistorted_image_path = _debugPath / "undistortion_crop";

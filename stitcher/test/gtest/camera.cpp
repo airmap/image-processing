@@ -29,7 +29,7 @@ protected:
     {
         return Camera(focal_length_meters, sensor_dimensions_meters,
                       sensor_dimensions_pixels, principal_point,
-                      calibration_intrinsics);
+                      std::make_shared<cv::Mat>(calibration_intrinsics));
     }
 
     cv::Point2d createFocalLengthPixels()

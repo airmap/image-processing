@@ -1,7 +1,16 @@
 #pragma once
 
-#include <boost/format.hpp>
-#include <boost/optional.hpp>
+#include "airmap/camera.h"
+#include "airmap/camera_models.h"
+#include "airmap/distortion.h"
+#include "airmap/gimbal.h"
+#include "airmap/images.h"
+#include "airmap/logging.h"
+#include "airmap/monitor/estimator.h"
+#include "airmap/opencv/forward.h"
+#include "airmap/opencv/seam_finders.h"
+#include "airmap/stitcher.h"
+#include "airmap/stitcher_configuration.h"
 
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/core/utility.hpp>
@@ -19,20 +28,6 @@
 #include <opencv2/stitching/detail/timelapsers.hpp>
 #include <opencv2/stitching/detail/warpers.hpp>
 #include <opencv2/stitching/warpers.hpp>
-
-#include "airmap/camera.h"
-#include "airmap/camera_models.h"
-#include "airmap/distortion.h"
-#include "airmap/gimbal.h"
-#include "airmap/images.h"
-#include "airmap/logging.h"
-#include "airmap/monitor/estimator.h"
-#include "airmap/opencv/seam_finders.h"
-#include "airmap/stitcher.h"
-#include "airmap/stitcher_configuration.h"
-
-using MonitoredGraphCutSeamFinder =
-        airmap::stitcher::opencv::detail::MonitoredGraphCutSeamFinder;
 
 namespace airmap {
 namespace stitcher {

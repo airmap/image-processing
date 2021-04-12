@@ -5,9 +5,8 @@
 #include "airmap/panorama.h"
 
 #include <boost/filesystem.hpp>
-#include <boost/optional.hpp>
-#include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 using airmap::stitcher::CameraModels;
 using airmap::stitcher::Camera;
@@ -31,8 +30,8 @@ TEST(cameraModels, detect)
     GeoImage image = GeoImage::fromExif((image_directory / "P5050970.JPG").string());
     Camera expected = CameraModels::ParrotAnafiThermal();
     CameraModels models;
-    boost::optional<Camera> actual = models.detect(image);
+    std::shared_ptr<Camera> actual = models.detect(image);
 
-    ASSERT_TRUE(actual.has_value());
-    ASSERT_DOUBLE_EQ(actual.get().focal_length_meters, expected.focal_length_meters);
+    ASSERT_TRUE(actual);
+    ASSERT_DOUBLE_EQ(actual->focal_length_meters, expected.focal_length_meters);
 }

@@ -19,18 +19,18 @@ using airmap::stitcher::monitor::OperationElapsedTimesMap;
 class MonitorTest : public ::testing::Test {
 protected:
     MonitorTest()
-        : camera(CameraModels::ParrotAnafiThermal())
-        , estimator{camera, logger}
+        : camera(std::make_shared<Camera>(CameraModels::ParrotAnafiThermal()))
         , logger(std::make_shared<stdoe_logger>())
+        , estimator{camera, logger}
     {
         estimator.enable();
     }
 
     Monitor createMonitor() { return {estimator, logger}; }
 
-    Camera camera;
-    Estimator estimator;
+    std::shared_ptr<Camera> camera;
     std::shared_ptr<Logger> logger;
+    Estimator estimator;
 };
 
 TEST_F(MonitorTest, changeOperation)

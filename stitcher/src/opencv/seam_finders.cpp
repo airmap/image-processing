@@ -1,7 +1,7 @@
 #include "airmap/opencv/seam_finders.h"
 
 #include <opencv2/imgproc/detail/gcgraph.hpp>
-#include <opencv2/stitching/detail/seam_finders.hpp>
+#include <opencv2/stitching.hpp>
 
 using namespace cv;
 using namespace cv::detail;

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "airmap/monitor/monitor.h"
+#include <opencv2/stitching/detail/seam_finders.hpp>
 
 using airmap::stitcher::monitor::Monitor;
 
