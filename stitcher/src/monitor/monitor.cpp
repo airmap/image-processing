@@ -4,13 +4,21 @@ namespace airmap {
 namespace stitcher {
 namespace monitor {
 
-Monitor::Monitor(Estimator &estimator, std::shared_ptr<airmap::logging::Logger> logger,
-                 bool enabled, bool logEnabled)
+Monitor::Monitor(OperationsEstimator::SharedPtr estimator,
+                 std::shared_ptr<airmap::logging::Logger> logger, bool enabled,
+                 bool logEnabled)
     : _estimator(estimator)
     , _logger(logger)
     , _enabled(enabled || logEnabled)
     , _logEnabled(logEnabled)
 {
+}
+
+Monitor::SharedPtr Monitor::create(OperationsEstimator::SharedPtr estimator,
+                                   std::shared_ptr<airmap::logging::Logger> logger,
+                                   bool enabled, bool logEnabled)
+{
+    return std::make_shared<Monitor>(estimator, logger, enabled, logEnabled);
 }
 
 void Monitor::changeOperation(const Operation &operation)
@@ -27,7 +35,7 @@ void Monitor::changeOperation(const Operation &operation)
         logOperation(operation);
     }
 
-    _estimator.changeOperation(operation);
+    _estimator->changeOperation(operation);
 
     if (operation == Operation::Complete()) {
         logComplete();
@@ -105,7 +113,7 @@ void Monitor::updateCurrentOperation(double progress)
         return;
     }
 
-    _estimator.updateCurrentOperation(progress);
+    _estimator->updateCurrentOperation(progress);
 }
 
 } // namespace monitor

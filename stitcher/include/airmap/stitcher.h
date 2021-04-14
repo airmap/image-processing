@@ -5,10 +5,13 @@
 
 #include "airmap/camera.h"
 #include "airmap/logging.h"
+#include "airmap/monitor/estimator.h"
 #include "airmap/monitor/monitor.h"
 #include "airmap/panorama.h"
 
+using airmap::stitcher::monitor::Estimator;
 using airmap::stitcher::monitor::Monitor;
+using airmap::stitcher::monitor::OperationsEstimator;
 
 namespace airmap {
 namespace stitcher {
@@ -78,8 +81,10 @@ public:
 
 /**
  * @brief MonitoredStitcher
- * A Stitcher with a monitor and estimator, which can track and estimate
- * elapsed time of stitch operations.
+ * A Stitcher with a basic estimator, which can be used to manually
+ * update estimated time remaining and current progress of a stitch.
+ * This is intended to be used by a parent process, which is running
+ * an OperationsMonitoredStitcher in a child process.
  */
 class MonitoredStitcher : public Stitcher {
 public:
@@ -87,23 +92,26 @@ public:
     using UpdatedCb = monitor::Estimator::UpdatedCb;
 
     MonitoredStitcher(
+            const Panorama::Parameters &parameters, const Estimator::SharedPtr estimator,
+            std::shared_ptr<airmap::logging::Logger> logger,
+            UpdatedCb updatedCb = []() {})
+        : _estimator(estimator)
+    {
+    }
+
+    MonitoredStitcher(
             const Panorama &panorama, const Panorama::Parameters &parameters,
             std::shared_ptr<airmap::logging::Logger> logger,
             std::shared_ptr<Camera> camera, UpdatedCb updatedCb = []() {})
-        : _camera(camera)
-        , _estimator(_camera, logger, updatedCb, parameters.enableEstimate,
-                     parameters.enableEstimateLog)
-        , _monitor(std::make_shared<Monitor>(_estimator, logger,
-                                             parameters.enableElapsedTime,
-                                             parameters.enableEstimateLog))
+        : MonitoredStitcher(parameters,
+                            Estimator::create(logger, updatedCb,
+                                              parameters.enableEstimate,
+                                              parameters.enableEstimateLog),
+                            logger, updatedCb)
     {
-        _estimator.setOperationTimesCb(
-            [this]() { return _monitor->operationTimes(); });
     }
 
-    monitor::Estimator &estimator() { return _estimator; }
-
-    Monitor::SharedPtr monitor() { return _monitor; }
+    Estimator::SharedPtr estimator() { return _estimator; }
 
 protected:
     /**
@@ -116,8 +124,38 @@ protected:
      * @brief _estimator
      * The stitcher estimator.  Manages operation elapsed time estimates.
      */
-    monitor::Estimator _estimator;
+    Estimator::SharedPtr _estimator;
+};
 
+/**
+ * @brief OperationsMonitoredStitcher
+ * A Stitcher with a monitor and estimator, which can track and estimate
+ * elapsed time of stitch operations.
+ */
+class OperationsMonitoredStitcher : public MonitoredStitcher
+{
+public:
+    OperationsMonitoredStitcher(
+            const Panorama &panorama, const Panorama::Parameters &parameters,
+            std::shared_ptr<airmap::logging::Logger> logger,
+            std::shared_ptr<Camera> camera, UpdatedCb updatedCb = []() {})
+        : MonitoredStitcher(parameters,
+                            OperationsEstimator::create(camera, logger, updatedCb,
+                                                        parameters.enableEstimate,
+                                                        parameters.enableEstimateLog),
+                            logger, updatedCb)
+        , _monitor(Monitor::create(
+                  std::make_shared<OperationsEstimator>(
+                          *dynamic_cast<OperationsEstimator *>(_estimator.get())),
+                  logger, parameters.enableElapsedTime, parameters.enableEstimateLog))
+    {
+        dynamic_cast<OperationsEstimator *>(_estimator.get())
+                ->setOperationTimesCb([this]() { return _monitor->operationTimes(); });
+    }
+
+    Monitor::SharedPtr monitor() { return _monitor; }
+
+protected:
     /**
      * @brief _monitor
      * The stitcher monitor.  Manages operation elapsed time and estimates.

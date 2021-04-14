@@ -38,8 +38,8 @@ OpenCVStitcher::OpenCVStitcher(const Panorama &panorama,
                                std::shared_ptr<airmap::logging::Logger> logger,
                                monitor::Estimator::UpdatedCb updatedCb, bool debug,
                                path debugPath)
-    : MonitoredStitcher(panorama, parameters, logger,
-                        CameraModels().detect(panorama.front()), updatedCb)
+    : OperationsMonitoredStitcher(panorama, parameters, logger,
+                                  CameraModels().detect(panorama.front()), updatedCb)
     , _debug(debug)
     , _debugPath(debugPath)
     , _logger(logger)

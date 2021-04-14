@@ -36,7 +36,8 @@ namespace stitcher {
  * @brief The OpenCVStitcher performs basic, same callstack stitching using OpenCV
  * high level stitching API.
  */
-class OpenCVStitcher : public MonitoredStitcher {
+class OpenCVStitcher : public OperationsMonitoredStitcher
+{
 public:
     OpenCVStitcher(
             const Panorama &panorama, const Panorama::Parameters &parameters,

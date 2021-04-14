@@ -21,8 +21,13 @@ class Monitor {
 public:
     using SharedPtr = std::shared_ptr<Monitor>;
 
-    Monitor(Estimator &estimator, std::shared_ptr<airmap::logging::Logger> logger,
-            bool enabled = false, bool logEnabled = false);
+    Monitor(OperationsEstimator::SharedPtr estimator,
+            std::shared_ptr<airmap::logging::Logger> logger, bool enabled = false,
+            bool logEnabled = false);
+
+    static Monitor::SharedPtr create(OperationsEstimator::SharedPtr estimator,
+                                     std::shared_ptr<airmap::logging::Logger> logger,
+                                     bool enabled = false, bool logEnabled = false);
 
     /**
      * @brief changeOperation
@@ -77,9 +82,9 @@ public:
 private:
     /**
      * @brief _estimator
-     * A reference to an instance of an estimator.
+     * A pointer to an instance of an estimator.
      */
-    Estimator &_estimator;
+    OperationsEstimator::SharedPtr _estimator;
 
     /**
      * @brief _operationTimes
