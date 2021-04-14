@@ -11,7 +11,7 @@ namespace airmap {
 namespace stitcher {
 
 SourceImages::SourceImages(const Panorama &panorama,
-                           std::shared_ptr<Logger> logger,
+                           std::shared_ptr<airmap::logging::Logger> logger,
                            const int _minimumImageCount)
     : panorama(panorama)
     , images()

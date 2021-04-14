@@ -26,10 +26,12 @@ add_library(
     src/cubemap.cpp
     src/cropper.cpp
     src/distortion.cpp
+    src/gimbal.cpp
     src/images.cpp
     src/monitor/estimator.cpp
     src/monitor/monitor.cpp
     src/monitor/timer.cpp
+    src/opencv/forward.cpp
     src/opencv/seam_finders.cpp
     src/panorama.cpp
     src/stitcher.cpp

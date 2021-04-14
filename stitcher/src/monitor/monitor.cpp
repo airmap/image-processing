@@ -4,7 +4,7 @@ namespace airmap {
 namespace stitcher {
 namespace monitor {
 
-Monitor::Monitor(Estimator &estimator, std::shared_ptr<Logger> logger,
+Monitor::Monitor(Estimator &estimator, std::shared_ptr<airmap::logging::Logger> logger,
                  bool enabled, bool logEnabled)
     : _estimator(estimator)
     , _logger(logger)
@@ -77,7 +77,7 @@ void Monitor::logComplete() const
                 return previous + current.second;
             }) };
 
-    _logger->log(Logger::Severity::info,
+    _logger->log(airmap::logging::Logger::Severity::info,
                  ("Stitch finished in " + totalTime.str()).c_str(), "stitcher");
 }
 
@@ -87,7 +87,7 @@ void Monitor::logOperation(const Operation &operation) const
         return;
     }
 
-    _logger->log(Logger::Severity::info,
+    _logger->log(airmap::logging::Logger::Severity::info,
                  (operation.previous().str() + " finished in "
                   + std::prev(_operationTimes.end())->second.str())
                          .c_str(),

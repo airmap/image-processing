@@ -66,7 +66,7 @@ protected:
         source_images = std::make_shared<SourceImages>(std::move(panorama), logger);
     }
 
-    std::shared_ptr<Logger> logger;
+    std::shared_ptr<airmap::logging::Logger> logger;
     std::shared_ptr<SourceImages> source_images;
 };
 

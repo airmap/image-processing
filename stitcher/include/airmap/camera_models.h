@@ -1,7 +1,8 @@
 #pragma once
 
+#include <map>
+
 #include "airmap/camera.h"
-#include "airmap/distortion.h"
 #include "airmap/panorama.h"
 
 namespace airmap {

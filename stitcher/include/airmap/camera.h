@@ -3,8 +3,6 @@
 #include "airmap/distortion.h"
 #include "airmap/stitcher_configuration.h"
 
-#include <opencv2/core/utility.hpp>
-
 namespace airmap {
 namespace stitcher {
 
@@ -65,24 +63,6 @@ public:
     double focal_length_meters;
 
     /**
-     * @brief principal_point
-     * Principal point.
-     */
-    cv::Point2d principal_point;
-
-    /**
-     * @brief sensor_dimensions_meters
-     * Sensor dimensions in meters.
-     */
-    cv::Point2d sensor_dimensions_meters;
-
-    /**
-     * @brief sensor_dimensions_pixels
-     * Sensor dimensions in pixels.
-     */
-    cv::Point2d sensor_dimensions_pixels;
-
-    /**
      * @brief configuration
      * If the configuration callback is set, return the result of
      * calling it with the provided configuration and stitch type.
@@ -109,8 +89,16 @@ public:
      */
     cv::Mat K(double scale = 1.0) const;
 
+    cv::Point2d principalPoint() const;
+
+    cv::Point2d sensorDimensionsMeters() const;
+
+    cv::Point2d sensorDimensionsPixels() const;
+
 private:
+    class Impl;
     ConfigurationCb _configurationCb;
+    std::shared_ptr<Impl> _impl;
 };
 
 } // namespace stitcher

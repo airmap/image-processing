@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include "airmap/gimbal.h"
 
+#include <opencv2/core.hpp>
+
 using airmap::stitcher::GimbalOrientation;
 
 TEST(gimbal, gimbalStruct)

@@ -79,7 +79,7 @@ protected:
 
     std::shared_ptr<Camera> cameraAnafi;
     std::shared_ptr<Camera> cameraVesper;
-    std::shared_ptr<Logger> logger;
+    std::shared_ptr<airmap::logging::Logger> logger;
 };
 
 TEST_F(EstimatorTest, changeOperations)

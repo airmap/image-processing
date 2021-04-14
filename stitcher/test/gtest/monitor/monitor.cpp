@@ -29,7 +29,7 @@ protected:
     Monitor createMonitor() { return {estimator, logger}; }
 
     std::shared_ptr<Camera> camera;
-    std::shared_ptr<Logger> logger;
+    std::shared_ptr<airmap::logging::Logger> logger;
     Estimator estimator;
 };
 

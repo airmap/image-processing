@@ -5,8 +5,6 @@
 #include "airmap/monitor/operation.h"
 #include "airmap/monitor/timer.h"
 
-using Logger = airmap::logging::Logger;
-
 namespace airmap {
 namespace stitcher {
 namespace monitor {
@@ -21,9 +19,9 @@ public:
     using UpdatedCb = std::function<void()>;
 
     Estimator(
-        const std::shared_ptr<Camera> camera,
-        const std::shared_ptr<Logger> logger, UpdatedCb updatedCb = []() {},
-        bool enabled = false, bool logEnabled = false);
+            const std::shared_ptr<Camera> camera,
+            const std::shared_ptr<airmap::logging::Logger> logger,
+            UpdatedCb updatedCb = []() {}, bool enabled = false, bool logEnabled = false);
 
     /**
      * @brief estimateLogPrefix
@@ -211,7 +209,7 @@ private:
      * @brief _logger
      * A pointer to an instance of a logger.
      */
-    const std::shared_ptr<Logger> _logger;
+    const std::shared_ptr<airmap::logging::Logger> _logger;
 
     /**
      * @brief _operationEstimates

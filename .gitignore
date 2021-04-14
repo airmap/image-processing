@@ -40,8 +40,10 @@
 *.files
 *.includes
 
-build
 mason_packages
 node_modules
 dist
 .cache
+**/*.vscode
+**/bats
+**/build*

@@ -2,15 +2,35 @@
 
 namespace cv {
 
+class _InputArray;
+typedef const _InputArray &InputArray;
+
+class _InputOutputArray;
+typedef const _InputOutputArray &InputOutputArray;
+
 class Mat;
 class UMat;
+
+template<typename T>
+class Point_;
+typedef Point_<double> Point2d;
+
+template<typename T>
+class Point3_;
+typedef Point3_<double> Point3d;
+
+template<typename T>
+class Rect_;
+
+typedef Rect_<int> Rect2i;
+typedef Rect2i Rect;
 
 namespace detail {
 
 class PairwiseSeamFinder;
 class GraphCutSeamFinder;
-class ImageFeatures;
-class MatchesInfo;
+struct ImageFeatures;
+struct MatchesInfo;
 
 } // namespace detail
 } // namespace cv
@@ -30,6 +50,9 @@ enum InterpolationFlags {
 };
 
 enum GraphCutSeamFinderCostType { COST_COLOR, COST_COLOR_GRAD };
+
+// TODO(bkd): should be cv::InputOutputArray
+cv::InputArray noArray();
 
 } // namespace opencv
 } // namespace stitcher

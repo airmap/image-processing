@@ -9,8 +9,6 @@
 #include "airmap/monitor/operation.h"
 #include "airmap/monitor/timer.h"
 
-using Logger = airmap::logging::Logger;
-
 namespace airmap {
 namespace stitcher {
 namespace monitor {
@@ -23,7 +21,7 @@ class Monitor {
 public:
     using SharedPtr = std::shared_ptr<Monitor>;
 
-    Monitor(Estimator &estimator, std::shared_ptr<Logger> logger,
+    Monitor(Estimator &estimator, std::shared_ptr<airmap::logging::Logger> logger,
             bool enabled = false, bool logEnabled = false);
 
     /**
@@ -93,7 +91,7 @@ private:
      * @brief _logger
      * A pointer to an instance of a logger.
      */
-    std::shared_ptr<Logger> _logger;
+    std::shared_ptr<airmap::logging::Logger> _logger;
 
     /**
      * @brief _enabled

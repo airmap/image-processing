@@ -5,8 +5,8 @@ namespace stitcher {
 namespace monitor {
 
 Estimator::Estimator(const std::shared_ptr<Camera> camera,
-                     const std::shared_ptr<Logger> logger, UpdatedCb updatedCb,
-                     bool enabled, bool logEnabled)
+                     const std::shared_ptr<airmap::logging::Logger> logger,
+                     UpdatedCb updatedCb, bool enabled, bool logEnabled)
     : _camera(camera)
     , _currentEstimate(0)
     , _currentOperation(Operation::Start())
@@ -294,10 +294,10 @@ void Estimator::log() const
         return;
     }
 
-    _logger->log(Logger::Severity::info,
+    _logger->log(airmap::logging::Logger::Severity::info,
                  (estimateLogPrefix + currentEstimate().str()).c_str(), "stitcher");
 
-    _logger->log(Logger::Severity::info,
+    _logger->log(airmap::logging::Logger::Severity::info,
                  (progressLogPrefix + std::to_string(currentProgress())).c_str(),
                  "stitcher");
 }

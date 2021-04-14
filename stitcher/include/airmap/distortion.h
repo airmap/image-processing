@@ -1,10 +1,14 @@
 #pragma once
 
+#include <array>
+
 #include "airmap/images.h"
+#include "airmap/opencv/forward.h"
 
 #include "boost/filesystem.hpp"
 #include "boost/format.hpp"
 
+using airmap::stitcher::opencv::noArray;
 using boost::filesystem::path;
 
 namespace airmap {
@@ -46,7 +50,7 @@ public:
      * @param K Camera intrinsics matrix.
      */
     virtual void undistort(std::vector<cv::Mat> &images,
-                           cv::InputArray K = cv::noArray()) = 0;
+                           cv::InputArray K = noArray()) = 0;
 
     /**
      * @brief undistort
@@ -54,7 +58,7 @@ public:
      * @param image Image to undistort.
      * @param K Camera intrinsics matrix.
      */
-    virtual void undistort(cv::Mat &image, cv::InputArray K = cv::noArray()) = 0;
+    virtual void undistort(cv::Mat &image, cv::InputArray K = noArray()) = 0;
 
 protected:
     bool _enabled;
@@ -184,8 +188,7 @@ public:
      * @param images Images to undistort.
      * @param K Camera intrinsics matrix.
      */
-    void undistort(std::vector<cv::Mat> &images,
-                   cv::InputArray K = cv::noArray());
+    void undistort(std::vector<cv::Mat> &images, cv::InputArray K = noArray());
 
     /**
      * @brief undistort
@@ -193,7 +196,7 @@ public:
      * @param image Image to undistort.
      * @param K Camera intrinsics matrix.
      */
-    void undistort(cv::Mat &image, cv::InputArray K = cv::noArray());
+    void undistort(cv::Mat &image, cv::InputArray K = noArray());
 
 protected:
     /**
@@ -354,7 +357,7 @@ public:
      * @param image Image to undistort.
      * @param K Camera intrinsics matrix.
      */
-    void undistort(cv::Mat &image, cv::InputArray K = cv::noArray());
+    void undistort(cv::Mat &image, cv::InputArray K = noArray());
 
     /**
      * @brief undistort
@@ -362,8 +365,7 @@ public:
      * @param images Images to undistort.
      * @param K Camera intrinsics matrix.
      */
-    void undistort(std::vector<cv::Mat> &images,
-                   cv::InputArray K = cv::noArray());
+    void undistort(std::vector<cv::Mat> &images, cv::InputArray K = noArray());
 
     /**
      * @brief worldToCamera

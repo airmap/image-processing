@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include "airmap/camera.h"
 
+#include <opencv2/core.hpp>
+
 using airmap::stitcher::Camera;
 
 class CameraTest : public ::testing::Test
@@ -92,12 +94,12 @@ TEST_F(CameraTest, cameraStruct)
 
     // Test intrinsics.
     EXPECT_DOUBLE_EQ(camera.focal_length_meters, focal_length_meters);
-    EXPECT_DOUBLE_EQ(camera.sensor_dimensions_meters.x, sensor_dimensions_meters.x);
-    EXPECT_DOUBLE_EQ(camera.sensor_dimensions_meters.y, sensor_dimensions_meters.y);
-    EXPECT_DOUBLE_EQ(camera.sensor_dimensions_pixels.x, sensor_dimensions_pixels.x);
-    EXPECT_DOUBLE_EQ(camera.sensor_dimensions_pixels.y, sensor_dimensions_pixels.y);
-    EXPECT_DOUBLE_EQ(camera.principal_point.x, principal_point.x);
-    EXPECT_DOUBLE_EQ(camera.principal_point.y, principal_point.y);
+    EXPECT_DOUBLE_EQ(camera.sensorDimensionsMeters().x, sensor_dimensions_meters.x);
+    EXPECT_DOUBLE_EQ(camera.sensorDimensionsMeters().y, sensor_dimensions_meters.y);
+    EXPECT_DOUBLE_EQ(camera.sensorDimensionsPixels().x, sensor_dimensions_pixels.x);
+    EXPECT_DOUBLE_EQ(camera.sensorDimensionsPixels().y, sensor_dimensions_pixels.y);
+    EXPECT_DOUBLE_EQ(camera.principalPoint().x, principal_point.x);
+    EXPECT_DOUBLE_EQ(camera.principalPoint().y, principal_point.y);
 }
 
 TEST_F(CameraTest, cameraFocalLengthPixels)

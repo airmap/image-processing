@@ -40,7 +40,8 @@ class OpenCVStitcher : public MonitoredStitcher {
 public:
     OpenCVStitcher(
             const Panorama &panorama, const Panorama::Parameters &parameters,
-            const std::string &outputPath, std::shared_ptr<Logger> logger,
+            const std::string &outputPath,
+            std::shared_ptr<airmap::logging::Logger> logger,
             monitor::Estimator::UpdatedCb updatedCb = []() {}, bool debug = false,
             path debugPath = path("debug"));
 
@@ -53,7 +54,7 @@ public:
 protected:
     bool _debug;
     path _debugPath;
-    std::shared_ptr<Logger> _logger;
+    std::shared_ptr<airmap::logging::Logger> _logger;
     Panorama _panorama;
     Panorama::Parameters _parameters;
     std::string _outputPath;
@@ -111,11 +112,12 @@ public:
      * Create an instance of the stitcher with the given configuration.
      * @param config
      */
-    LowLevelOpenCVStitcher(const Configuration &config, const Panorama &panorama,
-                           const Panorama::Parameters &parameters,
-                           const std::string &outputPath, std::shared_ptr<Logger> logger,
-                           monitor::Estimator::UpdatedCb updatedCb = []() {},
-                           bool debug = false, path debugPath = path("debug"));
+    LowLevelOpenCVStitcher(
+            const Configuration &config, const Panorama &panorama,
+            const Panorama::Parameters &parameters, const std::string &outputPath,
+            std::shared_ptr<airmap::logging::Logger> logger,
+            monitor::Estimator::UpdatedCb updatedCb = []() {}, bool debug = false,
+            path debugPath = path("debug"));
 
     Report stitch() override;
     void cancel() override;

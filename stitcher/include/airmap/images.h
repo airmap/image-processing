@@ -46,7 +46,7 @@ struct SourceImages
     /**
      * @brief logger
      */
-    std::shared_ptr<Logger> _logger;
+    std::shared_ptr<airmap::logging::Logger> _logger;
 
     /**
      * @brief minimumImageCount
@@ -58,7 +58,8 @@ struct SourceImages
      * @brief SourceImages
      * @param panorama Source image paths and metadata.
      */
-    SourceImages(const Panorama &panorama, std::shared_ptr<Logger> logger,
+    SourceImages(const Panorama &panorama,
+                 std::shared_ptr<airmap::logging::Logger> logger,
                  const int _minimumImageCount = 2);
 
     /**

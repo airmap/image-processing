@@ -4,7 +4,6 @@
 #include <sstream>
 
 #include "airmap/camera.h"
-#include "airmap/camera_models.h"
 #include "airmap/logging.h"
 #include "airmap/monitor/monitor.h"
 #include "airmap/panorama.h"
@@ -88,9 +87,10 @@ public:
     using UpdatedCb = monitor::Estimator::UpdatedCb;
 
     MonitoredStitcher(
-        const Panorama &panorama, const Panorama::Parameters &parameters,
-        std::shared_ptr<Logger> logger, UpdatedCb updatedCb = []() {})
-        : _camera(CameraModels().detect(panorama.front()))
+            const Panorama &panorama, const Panorama::Parameters &parameters,
+            std::shared_ptr<airmap::logging::Logger> logger,
+            std::shared_ptr<Camera> camera, UpdatedCb updatedCb = []() {})
+        : _camera(camera)
         , _estimator(_camera, logger, updatedCb, parameters.enableEstimate,
                      parameters.enableEstimateLog)
         , _monitor(std::make_shared<Monitor>(_estimator, logger,

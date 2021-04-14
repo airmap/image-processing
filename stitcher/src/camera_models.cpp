@@ -1,5 +1,7 @@
 #include "airmap/camera_models.h"
 
+#include <opencv2/core.hpp>
+
 namespace airmap {
 namespace stitcher {
 

@@ -2,6 +2,8 @@
 #include "cropper.h"
 #include "cubemap.h"
 
+#include "airmap/camera_models.h"
+
 #include <opencv2/core/ocl.hpp>
 #include <opencv2/core/utility.hpp>
 #include <opencv2/highgui.hpp>
@@ -33,10 +35,11 @@ namespace stitcher {
 OpenCVStitcher::OpenCVStitcher(const Panorama &panorama,
                                const Panorama::Parameters &parameters,
                                const std::string &outputPath,
-                               std::shared_ptr<Logger> logger,
-                               monitor::Estimator::UpdatedCb updatedCb,
-                               bool debug, path debugPath)
-    : MonitoredStitcher(panorama, parameters, logger, updatedCb)
+                               std::shared_ptr<airmap::logging::Logger> logger,
+                               monitor::Estimator::UpdatedCb updatedCb, bool debug,
+                               path debugPath)
+    : MonitoredStitcher(panorama, parameters, logger,
+                        CameraModels().detect(panorama.front()), updatedCb)
     , _debug(debug)
     , _debugPath(debugPath)
     , _logger(logger)
