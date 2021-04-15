@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include "airmap/monitor/timer.h"
 
 namespace airmap {

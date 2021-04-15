@@ -1,15 +1,12 @@
 #pragma once
 
 #include <array>
+#include <functional>
 
 #include "airmap/images.h"
 #include "airmap/opencv/forward.h"
 
-#include "boost/filesystem.hpp"
-#include "boost/format.hpp"
-
 using airmap::stitcher::opencv::noArray;
-using boost::filesystem::path;
 
 namespace airmap {
 namespace stitcher {

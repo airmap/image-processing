@@ -29,6 +29,11 @@
 #include <opencv2/stitching/detail/warpers.hpp>
 #include <opencv2/stitching/warpers.hpp>
 
+#include <boost/filesystem.hpp>
+#include <boost/format.hpp>
+
+using boost::filesystem::path;
+
 namespace airmap {
 namespace stitcher {
 
