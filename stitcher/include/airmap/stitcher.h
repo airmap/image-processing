@@ -91,23 +91,18 @@ public:
     using SharedPtr = std::shared_ptr<MonitoredStitcher>;
     using UpdatedCb = monitor::Estimator::UpdatedCb;
 
-    MonitoredStitcher(
-            const Panorama::Parameters &parameters, const Estimator::SharedPtr estimator,
-            std::shared_ptr<airmap::logging::Logger> logger,
-            UpdatedCb updatedCb = []() {})
+    MonitoredStitcher(const Estimator::SharedPtr estimator)
         : _estimator(estimator)
     {
     }
 
     MonitoredStitcher(
-            const Panorama &panorama, const Panorama::Parameters &parameters,
+            const Panorama::Parameters &parameters,
             std::shared_ptr<airmap::logging::Logger> logger,
             UpdatedCb updatedCb = []() {})
-        : MonitoredStitcher(parameters,
-                            Estimator::create(logger, updatedCb,
+        : MonitoredStitcher(Estimator::create(logger, updatedCb,
                                               parameters.enableEstimate,
-                                              parameters.enableEstimateLog),
-                            logger, updatedCb)
+                                              parameters.enableEstimateLog))
     {
     }
 
@@ -133,16 +128,12 @@ public:
             const Panorama &panorama, const Panorama::Parameters &parameters,
             std::shared_ptr<airmap::logging::Logger> logger,
             std::shared_ptr<Camera> camera, UpdatedCb updatedCb = []() {})
-        : MonitoredStitcher(parameters,
-                            OperationsEstimator::create(camera, logger, updatedCb,
+        : MonitoredStitcher(OperationsEstimator::create(camera, logger, updatedCb,
                                                         parameters.enableEstimate,
-                                                        parameters.enableEstimateLog),
-                            logger, updatedCb)
+                                                        parameters.enableEstimateLog))
         , _camera(camera)
-        , _monitor(Monitor::create(
-                  std::make_shared<OperationsEstimator>(
-                          *dynamic_cast<OperationsEstimator *>(_estimator.get())),
-                  logger, parameters.enableElapsedTime, parameters.enableEstimateLog))
+        , _monitor(Monitor::create(_estimator, logger, parameters.enableElapsedTime,
+                                   parameters.enableEstimateLog))
     {
         dynamic_cast<OperationsEstimator *>(_estimator.get())
                 ->setOperationTimesCb([this]() { return _monitor->operationTimes(); });

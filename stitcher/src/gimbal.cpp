@@ -36,6 +36,8 @@ GimbalOrientation GimbalOrientation::convertTo(Units _units)
         return GimbalOrientation(pitch * M_PI / 180.0, roll * M_PI / 180.0,
                                  yaw * M_PI / 180.0, Units::Radians);
     }
+
+    return *this;
 }
 
 cv::Mat GimbalOrientation::homography(cv::Mat K)

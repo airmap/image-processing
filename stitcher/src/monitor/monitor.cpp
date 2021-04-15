@@ -21,6 +21,15 @@ Monitor::SharedPtr Monitor::create(OperationsEstimator::SharedPtr estimator,
     return std::make_shared<Monitor>(estimator, logger, enabled, logEnabled);
 }
 
+Monitor::SharedPtr Monitor::create(Estimator::SharedPtr estimator,
+                                   std::shared_ptr<airmap::logging::Logger> logger,
+                                   bool enabled, bool logEnabled)
+{
+    OperationsEstimator::SharedPtr _estimator =
+            std::dynamic_pointer_cast<OperationsEstimator>(estimator);
+    return std::make_shared<Monitor>(_estimator, logger, enabled, logEnabled);
+}
+
 void Monitor::changeOperation(const Operation &operation)
 {
     if (!_enabled) {
@@ -69,6 +78,11 @@ void Monitor::enableLog()
 {
     _enabled = true;
     _logEnabled = true;
+}
+
+OperationsEstimator::SharedPtr Monitor::estimator()
+{
+    return _estimator;
 }
 
 void Monitor::logComplete() const

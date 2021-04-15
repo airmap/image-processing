@@ -29,6 +29,10 @@ public:
                                      std::shared_ptr<airmap::logging::Logger> logger,
                                      bool enabled = false, bool logEnabled = false);
 
+    static Monitor::SharedPtr create(Estimator::SharedPtr estimator,
+                                     std::shared_ptr<airmap::logging::Logger> logger,
+                                     bool enabled = false, bool logEnabled = false);
+
     /**
      * @brief changeOperation
      * Change the current operation.
@@ -65,6 +69,12 @@ public:
      * Enables logging of operation elapsed times.
      */
     void enableLog();
+
+    /**
+     * @brief estimator
+     * Returns a pointer to the estimator.
+     */
+    OperationsEstimator::SharedPtr estimator();
 
     /**
      * @brief operationTimes
