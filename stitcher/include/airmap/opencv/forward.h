@@ -51,6 +51,8 @@ enum InterpolationFlags {
 
 enum GraphCutSeamFinderCostType { COST_COLOR, COST_COLOR_GRAD };
 
+int defaultInterpolationFlags();
+
 cv::InputArray noArray();
 
 } // namespace opencv

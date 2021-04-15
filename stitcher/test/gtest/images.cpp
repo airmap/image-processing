@@ -1,8 +1,8 @@
-#include "gtest/gtest.h"
 #include "airmap/images.h"
 #include "airmap/logging.h"
 #include "airmap/panorama.h"
 #include "opencv_assert/mat_compare.h"
+#include "gtest/gtest.h"
 
 #include <boost/filesystem.hpp>
 

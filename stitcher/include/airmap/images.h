@@ -8,6 +8,7 @@
 #include <random>
 
 using Logger = airmap::logging::Logger;
+using airmap::stitcher::opencv::defaultInterpolationFlags;
 using airmap::stitcher::opencv::InterpolationFlags;
 
 namespace airmap {
@@ -107,8 +108,7 @@ struct SourceImages
      * @param scale
      * @param interpolation
      */
-    void scale(double scale,
-               int interpolation = InterpolationFlags::INTER_LINEAR_EXACT);
+    void scale(double scale, int interpolation = defaultInterpolationFlags());
 
     /**
      * @brief scaleToAvailableMemory
@@ -122,10 +122,10 @@ struct SourceImages
      * @param interpolation OpenCV resize interpolation method.
      * @throws std::invalid_argument When RAM budget is too small.
      */
-    void scaleToAvailableMemory(
-        size_t memoryBudgetMB, size_t &maxInputImageSize, size_t &inputSizeMB,
-        double &inputScaled,
-        int interpolation = InterpolationFlags::INTER_LINEAR_EXACT);
+    void
+    scaleToAvailableMemory(size_t memoryBudgetMB, size_t &maxInputImageSize,
+                           size_t &inputSizeMB, double &inputScaled,
+                           int interpolation = defaultInterpolationFlags());
 };
 
 } // namespace stitcher

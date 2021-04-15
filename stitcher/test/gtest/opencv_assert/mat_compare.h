@@ -88,6 +88,8 @@ static inline ::testing::AssertionResult CvMatCompare(const char* a_expr,
         return ::testing::AssertionFailure() << a_expr << " and " << b_expr
                                                 << " don't differ.";
     }
+
+    return ::testing::AssertionSuccess();
 }
 
 static inline ::testing::AssertionResult CvMatEq(const char* a_expr,
