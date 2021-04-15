@@ -102,7 +102,7 @@ public:
     MonitoredStitcher(
             const Panorama &panorama, const Panorama::Parameters &parameters,
             std::shared_ptr<airmap::logging::Logger> logger,
-            std::shared_ptr<Camera> camera, UpdatedCb updatedCb = []() {})
+            UpdatedCb updatedCb = []() {})
         : MonitoredStitcher(parameters,
                             Estimator::create(logger, updatedCb,
                                               parameters.enableEstimate,
@@ -114,12 +114,6 @@ public:
     Estimator::SharedPtr estimator() { return _estimator; }
 
 protected:
-    /**
-     * @brief _camera
-     * The detected camera.
-     */
-    const std::shared_ptr<Camera> _camera;
-
     /**
      * @brief _estimator
      * The stitcher estimator.  Manages operation elapsed time estimates.
@@ -144,6 +138,7 @@ public:
                                                         parameters.enableEstimate,
                                                         parameters.enableEstimateLog),
                             logger, updatedCb)
+        , _camera(camera)
         , _monitor(Monitor::create(
                   std::make_shared<OperationsEstimator>(
                           *dynamic_cast<OperationsEstimator *>(_estimator.get())),
@@ -156,6 +151,12 @@ public:
     Monitor::SharedPtr monitor() { return _monitor; }
 
 protected:
+    /**
+     * @brief _camera
+     * The detected camera.
+     */
+    const std::shared_ptr<Camera> _camera;
+
     /**
      * @brief _monitor
      * The stitcher monitor.  Manages operation elapsed time and estimates.
