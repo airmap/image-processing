@@ -51,7 +51,6 @@ enum InterpolationFlags {
 
 enum GraphCutSeamFinderCostType { COST_COLOR, COST_COLOR_GRAD };
 
-// TODO(bkd): should be cv::InputOutputArray
 cv::InputArray noArray();
 
 } // namespace opencv

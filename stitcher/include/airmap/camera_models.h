@@ -31,7 +31,7 @@ struct CameraModels
             }
         }
 
-        return nullptr;
+        return {};
     }
 
     /**

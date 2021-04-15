@@ -7,7 +7,6 @@ namespace airmap {
 namespace stitcher {
 namespace opencv {
 
-// TODO(bkd): should be cv::InputOutputArray
 cv::InputArray noArray()
 {
     return cv::noArray();
