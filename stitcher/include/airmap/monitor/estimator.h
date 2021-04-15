@@ -63,11 +63,9 @@ public:
      */
     virtual const ElapsedTime currentEstimate() const
     {
-        _logger->log(airmap::logging::Logger::Severity::info, "Estimator::currentEstimate", "stitcher");
         if (!_enabled) {
             return ElapsedTime::fromSeconds(0);
         }
-        _logger->log(airmap::logging::Logger::Severity::info, "Estimator::currentEstimate woo", "stitcher");
 
         // If a parent process has set the estimate, return it directly.
         // For example, AirBoss monitors stdout of the child (stitcher)
