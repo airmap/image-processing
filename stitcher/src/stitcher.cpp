@@ -321,9 +321,6 @@ void LowLevelOpenCVStitcher::debugMatches(
 
     boost::filesystem::create_directories(debug_path);
 
-    // std::cout << "source_images: " << source_images.size() << std::endl;
-    // std::cout << "matches: " << matches.size() << std::endl;
-
     const int num_matches = static_cast<int>(matches.size());
     for (int i = 0; i < num_matches; ++i) {
         cv::detail::MatchesInfo &match = matches[i];
@@ -332,8 +329,6 @@ void LowLevelOpenCVStitcher::debugMatches(
         }
 
         cv::Mat img_matches;
-        // std::cout << i << ": src_img_idx: " << match.src_img_idx
-        //           << " dst_img_idx: " << match.dst_img_idx << std::endl;
         cv::Mat src_img = source_images[match.src_img_idx];
         cv::Mat dst_img = source_images[match.dst_img_idx];
         const std::vector<cv::KeyPoint> &src_keypoints =
@@ -809,6 +804,9 @@ void LowLevelOpenCVStitcher::rotateImage(cv::Mat &image, double angle)
 bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
     const std::vector<cv::Mat> &original_images, cv::InputArray &warped_images)
 {
+    _logger->log(airmap::logging::Logger::Severity::info,
+                 "Determining if 360 should be rotated.", "stitcher");
+
     std::vector<cv::Mat> warped_images_;
     warped_images.getMatVector(warped_images_);
 
@@ -849,18 +847,24 @@ bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
     (*matcher)(features, matches);
     matcher->collectGarbage();
 
+    /**
+     * NOTE(bkd):
+     * The first half of the matches are between the original images
+     * and the warped images.  The second half are between the original
+     * images and the rotated warped images.
+     */
+
     debugMatches(all_images, features, matches, 0.,
                  _debugPath / "should_rotate_matches");
 
-    cv::Point2f error_total_a(0., 0.);
-    cv::Point2f error_total_b(0., 0.);
+    cv::Point2f error_total_warped(0., 0.);
+    cv::Point2f error_total_warped_rotated(0., 0.);
 
-    bool series_a = true;
+    bool warped_series = true;
     float match_count = 0;
-
     for (size_t i = 0; i < matches.size(); i++) {
         if (i >= matches.size() / 2.) {
-            series_a = false;
+            warped_series = false;
         }
 
         cv::Point2f error_src_last(0., 0.);
@@ -879,15 +883,15 @@ bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
                     dst_features.keypoints[matches[i].matches[j].trainIdx];
 
                 if (j > 0) {
-                    if (series_a) {
-                        error_total_a.x +=
+                    if (warped_series) {
+                        error_total_warped.x +=
                             abs(src_keypoint.pt.x - dst_keypoint.pt.x);
-                        error_total_a.y +=
+                        error_total_warped.y +=
                             abs(src_keypoint.pt.y - dst_keypoint.pt.y);
                     } else {
-                        error_total_b.x +=
+                        error_total_warped_rotated.x +=
                             abs(src_keypoint.pt.x - dst_keypoint.pt.x);
-                        error_total_b.y +=
+                        error_total_warped_rotated.y +=
                             abs(src_keypoint.pt.y - dst_keypoint.pt.y);
                     }
                     match_count++;
@@ -899,31 +903,34 @@ bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
         }
     }
 
-    cv::Point2f error_avg_a(
-        error_total_a.x > 0.f ? error_total_a.x / match_count : 0.f,
-        error_total_a.y > 0.f ? error_total_a.y / match_count : 0.f);
-    cv::Point2f error_avg_b(
-        error_total_b.x > 0.f ? error_total_b.x / match_count : 0.f,
-        error_total_b.y > 0.f ? error_total_b.y / match_count : 0.f);
+    cv::Point2f error_avg_warped(
+        error_total_warped.x > 0.f ? error_total_warped.x / match_count : 0.f,
+        error_total_warped.y > 0.f ? error_total_warped.y / match_count : 0.f);
+    cv::Point2f error_avg_warped_rotated(
+        error_total_warped_rotated.x > 0.f
+            ? error_total_warped_rotated.x / match_count
+            : 0.f,
+        error_total_warped_rotated.y > 0.f
+            ? error_total_warped_rotated.y / match_count
+            : 0.f);
 
-    std::cout << "error_total_a x: " << error_total_a.x
-              << " y: " << error_total_a.y << std::endl;
-    std::cout << "error_avg_a x: " << error_avg_a.x << " y: " << error_avg_a.y
-              << std::endl;
-    std::cout << "error_total_b x: " << error_total_b.x
-              << " y: " << error_total_b.y << std::endl;
-    std::cout << "error_avg_b x: " << error_avg_b.x << " y: " << error_avg_b.y
-              << std::endl;
+    std::stringstream message;
+    message << "Average error (warped) x: " << error_avg_warped.x
+            << " y: " << error_avg_warped.y;
+    _logger->log(airmap::logging::Logger::Severity::debug, message, "stitcher");
 
-    bool should_rotate =
-        error_avg_b.x < error_avg_a.x && error_avg_b.y < error_avg_a.y;
-    if (should_rotate) {
-        _logger->log(Logger::Severity::info, "Should rotate panorama.",
-                     "stitcher");
-    } else {
-        _logger->log(Logger::Severity::info, "Should not rotate panorama.",
-                     "stitcher");
-    }
+    std::stringstream().swap(message);
+    message << "Average error (rotated warped) x: "
+            << error_avg_warped_rotated.x
+            << " y: " << error_avg_warped_rotated.y;
+    _logger->log(airmap::logging::Logger::Severity::debug, message, "stitcher");
+
+    bool should_rotate = error_avg_warped_rotated.x < error_avg_warped.x &
+                         error_avg_warped_rotated.y < error_avg_warped.y;
+
+    std::stringstream().swap(message);
+    message << "Should " << (should_rotate ? "" : "not ") << "rotate panorama.";
+    _logger->log(Logger::Severity::info, message, "stitcher");
 
     return should_rotate;
 }
@@ -1042,6 +1049,8 @@ Stitcher::Report LowLevelOpenCVStitcher::stitch(cv::Mat &result)
             work_scale, compose_scale, warped_image_scale, result);
 
     if (should_rotate_result) {
+        _logger->log(airmap::logging::Logger::Severity::info,
+                     "Rotating panorama result.", "stitcher");
         rotateImage(result, 180.);
     }
 

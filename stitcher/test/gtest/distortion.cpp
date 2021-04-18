@@ -15,8 +15,6 @@ namespace stitcher {
 
 using boost::filesystem::path;
 
-/*
-
 //
 // 
 // PinholeDistortionModel Tests
@@ -132,7 +130,6 @@ TEST_F(PinholeDistortionModelTest, pinholeUndistortImage)
     expected_image = createUndistortedImage();
     EXPECT_PRED_FORMAT2(opencv_assert::CvMatEq, actual_image, expected_image);
 }
-*/
 
 //
 // 
