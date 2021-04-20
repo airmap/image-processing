@@ -925,7 +925,7 @@ bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
             << " y: " << error_avg_warped_rotated.y;
     _logger->log(airmap::logging::Logger::Severity::debug, message, "stitcher");
 
-    bool should_rotate = error_avg_warped_rotated.x < error_avg_warped.x &
+    bool should_rotate = error_avg_warped_rotated.x < error_avg_warped.x &&
                          error_avg_warped_rotated.y < error_avg_warped.y;
 
     std::stringstream().swap(message);
