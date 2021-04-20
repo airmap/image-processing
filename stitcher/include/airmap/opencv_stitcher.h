@@ -132,7 +132,7 @@ public:
     Report stitch() override;
     void cancel() override;
 
-private:
+protected:
     /**
      * @brief _config
      * The stitcher configuration.

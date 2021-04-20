@@ -1,60 +1,23 @@
 #include "airmap/images.h"
 #include "airmap/logging.h"
 #include "airmap/panorama.h"
-#include "opencv_assert/mat_compare.h"
+#include "util/images.h"
+#include "util/mat_compare.h"
 #include "gtest/gtest.h"
 
 #include <boost/filesystem.hpp>
 
+using airmap::logging::Logger;
+using airmap::logging::stdoe_logger;
 using airmap::stitcher::GeoImage;
 using airmap::stitcher::Panorama;
 using airmap::stitcher::SourceImages;
-using airmap::logging::Logger;
-using airmap::logging::stdoe_logger;
 using boost::filesystem::path;
+using util::images::Images;
+using util::opencv_assert::CvMatEq;
+using util::opencv_assert::CvMatNe;
 
-struct Images {
-    Images()
-    {
-        image_directory = path(__FILE__).parent_path() / ".." / "fixtures" / "panorama_aus_1";
-        const std::vector<path> image_paths {
-            image_directory / "P5050970.JPG",
-            image_directory / "P5060971.JPG",
-            image_directory / "P5060972.JPG",
-            image_directory / "P5070973.JPG",
-            image_directory / "P5070974.JPG",
-            image_directory / "P5080975.JPG",
-            image_directory / "P5080976.JPG",
-            image_directory / "P5090977.JPG",
-            image_directory / "P5090978.JPG",
-            image_directory / "P5100979.JPG",
-            image_directory / "P5100980.JPG",
-            image_directory / "P5110981.JPG",
-            image_directory / "P5110982.JPG",
-            image_directory / "P5120983.JPG",
-            image_directory / "P5120984.JPG",
-            image_directory / "P5130985.JPG",
-            image_directory / "P5130986.JPG",
-            image_directory / "P5130987.JPG",
-            image_directory / "P5140988.JPG",
-            image_directory / "P5140989.JPG",
-            image_directory / "P5150990.JPG",
-            image_directory / "P5150991.JPG",
-            image_directory / "P5160992.JPG",
-            image_directory / "P5160993.JPG",
-            image_directory / "P5160994.JPG"
-        };
-        for (auto &image_path : image_paths) {
-            images.push_back(GeoImage::fromExif(image_path.string()));
-        }
-    }
-
-    boost::filesystem::path image_directory;
-    std::list<boost::filesystem::path> image_paths;
-    std::list<GeoImage> images;
-};
-
-std::list<GeoImage> input = Images().images;
+std::list<GeoImage> input = Images::original();
 
 class SourceImagesTest : public ::testing::Test
 {
@@ -124,9 +87,9 @@ TEST_F(SourceImagesTest, sourceImagesFilter)
         cv::Mat actual = source_images->images[i];
 
         if (i == remove_index) {
-            EXPECT_PRED_FORMAT2(opencv_assert::CvMatEq, actual, expected);
+            EXPECT_PRED_FORMAT2(CvMatEq, actual, expected);
         } else {
-            EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, actual, expected);
+            EXPECT_PRED_FORMAT2(CvMatNe, actual, expected);
         }
     }
 
@@ -145,7 +108,7 @@ TEST_F(SourceImagesTest, sourceImagesFilter)
      */
     for (size_t i = 0; i < source_images->images.size(); ++i) {
         cv::Mat actual = source_images->images[i];
-        EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, actual, expected);
+        EXPECT_PRED_FORMAT2(CvMatNe, actual, expected);
     }
 }
 

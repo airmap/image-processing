@@ -1,7 +1,10 @@
-#include "gtest/gtest.h"
 #include "mat_compare.h"
 
 #include "opencv2/core.hpp"
+
+using util::opencv_assert::CvMatCompare;
+using util::opencv_assert::CvMatEq;
+using util::opencv_assert::CvMatNe;
 
 TEST(matCompare, dimensions)
 {
@@ -9,11 +12,11 @@ TEST(matCompare, dimensions)
 
     a = (cv::Mat_<double>(5, 1) << 1, 2, 3, 4, 5);
     b = (cv::Mat_<double>(5, 1) << 1, 2, 3, 4, 5);
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatEq, a, b);
+    EXPECT_PRED_FORMAT2(CvMatEq, a, b);
 
     a = (cv::Mat_<double>(5, 1) << 1, 2, 3, 4, 5);
     b = (cv::Mat_<double>(1, 5) << 1, 2, 3, 4, 5);
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, a, b);
+    EXPECT_PRED_FORMAT2(CvMatNe, a, b);
 }
 
 TEST(matCompare, size)
@@ -22,19 +25,18 @@ TEST(matCompare, size)
 
     a = (cv::Mat_<double>(2, 2) << 1, 2, 3, 4);
     b = (cv::Mat_<double>(2, 2) << 1, 2, 3, 4);
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatEq, a, b);
+    EXPECT_PRED_FORMAT2(CvMatEq, a, b);
 
     a = (cv::Mat_<double>(2, 2) << 1, 2, 3, 4);
     b = (cv::Mat_<double>(1, 1) << 1, 2);
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, a, b);
-
+    EXPECT_PRED_FORMAT2(CvMatNe, a, b);
 }
 
 TEST(matCompare, singleChannel)
 {
     cv::Mat a = (cv::Mat_<double>(2, 2) << 1, 3, 2, 4);
     cv::Mat b = (cv::Mat_<double>(2, 2) << 1, 2, 3, 4);
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, a, b);
+    EXPECT_PRED_FORMAT2(CvMatNe, a, b);
 }
 
 TEST(matCompare, multiChannel)
@@ -51,18 +53,18 @@ TEST(matCompare, multiChannel)
     /**
      * Two 3-channel matrices with the same values.
      */
-    channels_a = { channel_b, channel_g, channel_r };
-    channels_b = { channel_b, channel_g, channel_r };
+    channels_a = {channel_b, channel_g, channel_r};
+    channels_b = {channel_b, channel_g, channel_r};
     merge(channels_a, a);
     merge(channels_b, b);
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatEq, a, b);
+    EXPECT_PRED_FORMAT2(CvMatEq, a, b);
 
     /**
      * Two 3-channel matrices with inverted channels.
      */
-    channels_a = { channel_b, channel_g, channel_r };
-    channels_b = { channel_r, channel_g, channel_b };
+    channels_a = {channel_b, channel_g, channel_r};
+    channels_b = {channel_r, channel_g, channel_b};
     merge(channels_a, a);
     merge(channels_b, b);
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, a, b);
+    EXPECT_PRED_FORMAT2(CvMatNe, a, b);
 }

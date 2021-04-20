@@ -125,15 +125,16 @@ class OperationsMonitoredStitcher : public MonitoredStitcher
 {
 public:
     OperationsMonitoredStitcher(
-            const Panorama &panorama, const Panorama::Parameters &parameters,
-            std::shared_ptr<airmap::logging::Logger> logger,
-            std::shared_ptr<Camera> camera, UpdatedCb updatedCb = []() {})
-        : MonitoredStitcher(OperationsEstimator::create(camera, logger, updatedCb,
-                                                        parameters.enableEstimate,
-                                                        parameters.enableEstimateLog))
+        const Panorama &panorama, const Panorama::Parameters &parameters,
+        std::shared_ptr<airmap::logging::Logger> logger,
+        std::shared_ptr<Camera> camera, UpdatedCb updatedCb = []() {})
+        : MonitoredStitcher(OperationsEstimator::create(
+              camera, logger, updatedCb, parameters.enableEstimate,
+              parameters.enableEstimateLog))
         , _camera(camera)
-        , _monitor(Monitor::create(_estimator, logger, parameters.enableElapsedTime,
-                                   parameters.enableEstimateLog))
+        , _monitor(Monitor::create(_estimator, logger,
+                                   parameters.enableElapsedTime,
+                                   parameters.enableElapsedTimeLog))
     {
         dynamic_cast<OperationsEstimator *>(_estimator.get())
                 ->setOperationTimesCb([this]() { return _monitor->operationTimes(); });

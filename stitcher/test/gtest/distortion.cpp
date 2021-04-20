@@ -3,12 +3,15 @@
 #include "airmap/camera.h"
 #include "airmap/camera_models.h"
 #include "airmap/distortion.h"
-#include "opencv_assert/mat_compare.h"
+#include "util/mat_compare.h"
 
 #include "boost/filesystem.hpp"
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+
+using util::opencv_assert::CvMatEq;
+using util::opencv_assert::CvMatNe;
 
 namespace airmap {
 namespace stitcher {
@@ -113,7 +116,7 @@ TEST_F(PinholeDistortionModelTest, pinholeUndistortImages)
     std::vector<cv::Mat> images = { expected_image };
     camera.distortion_model->undistort(images, camera.K());
     cv::Mat actual_image = images[0];
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, actual_image, expected_image);
+    EXPECT_PRED_FORMAT2(CvMatNe, actual_image, expected_image);
 }
 
 TEST_F(PinholeDistortionModelTest, pinholeUndistortImage)
@@ -125,10 +128,10 @@ TEST_F(PinholeDistortionModelTest, pinholeUndistortImage)
     cv::Mat actual_image = createSourceImage();
     camera.distortion_model->undistort(actual_image, camera.K());
     cv::Mat expected_image = createSourceImage();
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatNe, actual_image, expected_image);
+    EXPECT_PRED_FORMAT2(CvMatNe, actual_image, expected_image);
 
     expected_image = createUndistortedImage();
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatEq, actual_image, expected_image);
+    EXPECT_PRED_FORMAT2(CvMatEq, actual_image, expected_image);
 }
 
 //
@@ -195,7 +198,7 @@ TEST_F(ScaramuzzaDistortionModelTest, scaramuzzaUndistortImage)
     cv::Mat actual_image = createSourceImage();
     distortion_model.undistort(actual_image, camera.K());
     cv::Mat expected_image = createUndistortedImage();
-    EXPECT_PRED_FORMAT2(opencv_assert::CvMatEq, actual_image, expected_image);
+    EXPECT_PRED_FORMAT2(CvMatEq, actual_image, expected_image);
 }
 
 } // namespace stitcher
