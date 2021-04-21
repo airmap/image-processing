@@ -5,42 +5,41 @@ namespace stitcher {
 namespace opencv {
 namespace detail {
 
-struct ThreeSixtyPanoramaOrientationMatchPairsBody : ParallelLoopBody {
+//
+//
+// ThreeSixtyPanoramaOrientationMatchPairsBody
+//
+//
+ThreeSixtyPanoramaOrientationMatchPairsBody::
     ThreeSixtyPanoramaOrientationMatchPairsBody(
         FeaturesMatcher &_matcher, const std::vector<ImageFeatures> &_features,
         std::vector<MatchesInfo> &_pairwise_matches,
         std::vector<std::pair<int, int>> &_near_pairs)
-        : matcher(_matcher)
-        , features(_features)
-        , pairwise_matches(_pairwise_matches)
-        , near_pairs(_near_pairs)
-    {
+    : matcher(_matcher)
+    , features(_features)
+    , pairwise_matches(_pairwise_matches)
+    , near_pairs(_near_pairs)
+{
+}
+
+void ThreeSixtyPanoramaOrientationMatchPairsBody::operator()(
+    const cv::Range &r) const
+{
+    cv::RNG rng = cv::theRNG(); // save entry rng state
+    const int num_images = static_cast<int>(features.size() / 3);
+    for (int i = r.start; i < r.end; ++i) {
+        cv::theRNG() = cv::RNG(
+            rng.state + i); // force "stable" RNG seed for each processed pair
+
+        int from = near_pairs[i].first;
+        int to = near_pairs[i].second;
+        int pair_idx = to >= 2 * num_images ? from + num_images : from;
+
+        matcher(features[from], features[to], pairwise_matches[pair_idx]);
+        pairwise_matches[pair_idx].src_img_idx = from;
+        pairwise_matches[pair_idx].dst_img_idx = to;
     }
-
-    void operator()(const cv::Range &r) const CV_OVERRIDE
-    {
-        cv::RNG rng = cv::theRNG(); // save entry rng state
-        const int num_images = static_cast<int>(features.size() / 3);
-        for (int i = r.start; i < r.end; ++i) {
-            cv::theRNG() =
-                cv::RNG(rng.state +
-                        i); // force "stable" RNG seed for each processed pair
-
-            int from = near_pairs[i].first;
-            int to = near_pairs[i].second;
-            int pair_idx = to >= 2 * num_images ? from + num_images : from;
-
-            matcher(features[from], features[to], pairwise_matches[pair_idx]);
-            pairwise_matches[pair_idx].src_img_idx = from;
-            pairwise_matches[pair_idx].dst_img_idx = to;
-        }
     }
-
-    FeaturesMatcher &matcher;
-    const std::vector<ImageFeatures> &features;
-    std::vector<MatchesInfo> &pairwise_matches;
-    std::vector<std::pair<int, int>> &near_pairs;
-};
 
 ThreeSixtyPanoramaOrientationMatcher::ThreeSixtyPanoramaOrientationMatcher(
     bool try_use_gpu, float match_conf, int num_matches_thresh1,
@@ -56,6 +55,10 @@ void ThreeSixtyPanoramaOrientationMatcher::operator()(
 {
     assert(mask.empty());
 
+    // Populate near_pairs, which are the pairs of images/features
+    // to perform the matching on.
+    // We expect to have 3 consecutive sets of features, so we
+    // need to first find the number of images for each set.
     const int num_images = static_cast<int>(features.size() / 3);
     std::vector<std::pair<int, int>> near_pairs;
     for (int i = 0; i < num_images; i++) {
@@ -87,6 +90,7 @@ void ThreeSixtyPanoramaOrientationMatcher::match(
     const cv::detail::ImageFeatures &features2,
     cv::detail::MatchesInfo &matches_info)
 {
+    // Perform the actual match between the two images.
     (*impl_)(features1, features2, matches_info);
 
     // Check if it makes sense to find homography
@@ -113,6 +117,10 @@ void ThreeSixtyPanoramaOrientationMatcher::match(
     }
 
     // Find pair-wise motion
+    // We don't really care about the homography here, and don't worry about
+    // refining it (as happens in BestOf2NearestMatcher).  We only calculate
+    // the homography in order to get the inliers, which are used to
+    // calculate match confidence.
     matches_info.H = cv::findHomography(src_points, dst_points,
                                         matches_info.inliers_mask, cv::RANSAC);
     if (matches_info.H.empty() || std::abs(cv::determinant(matches_info.H)) <

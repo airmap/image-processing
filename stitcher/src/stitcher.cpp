@@ -823,7 +823,6 @@ bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
         warped_rotated_images.push_back(warped_rotated_image);
     }
 
-    // TODO(bkd): std::move on const reference seems to be okay?
     std::vector<cv::Mat> all_images;
     cv::Mat resized;
     for (size_t i = 0; i < original_images.size(); i++) {
@@ -860,6 +859,14 @@ bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
     cv::Point2f error_total_warped(0., 0.);
     cv::Point2f error_total_warped_rotated(0., 0.);
 
+    // Calculate the "error" between the two sets of matches.
+    // For each set of matches, we calculate the distance
+    // between the feature points in the original images and
+    // the feature points in the warped images.
+    // The hypothesis is that the set of warped images (either
+    // default orientation or rotated 180 degrees) with the
+    // smallest averge distance is the set that has the correct
+    // orientation.
     bool warped_series = true;
     float match_count = 0;
     for (size_t i = 0; i < matches.size(); i++) {
@@ -925,6 +932,9 @@ bool LowLevelOpenCVStitcher::shouldRotateThreeSixty(
             << " y: " << error_avg_warped_rotated.y;
     _logger->log(airmap::logging::Logger::Severity::debug, message, "stitcher");
 
+    // If the error for the warped and rotated images is smaller than the
+    // error for the warped images, then we assume that the warping/projection
+    // has resulted in the images being upside down (rotated 180 degrees).
     bool should_rotate = error_avg_warped_rotated.x < error_avg_warped.x &&
                          error_avg_warped_rotated.y < error_avg_warped.y;
 
